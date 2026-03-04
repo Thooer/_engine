@@ -1,0 +1,48 @@
+[package]
+name = "engine-renderer"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Team"]
+description = "ToyEngine 渲染系统"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# 核心依赖
+engine-core = { path = "../engine-core" }
+glam = { workspace = true }
+tracing = { workspace = true }
+bytemuck = { workspace = true }
+
+# 图形
+wgpu = { workspace = true }
+naga = { workspace = true }
+
+# 窗口句柄
+raw-window-handle = { workspace = true }
+
+# UI
+egui = { workspace = true }
+egui-wgpu = { workspace = true }
+egui-winit = { workspace = true }
+
+# 资源
+image = { workspace = true }
+gltf = { workspace = true }
+ktx2 = { workspace = true }
+ddsfile = { workspace = true }
+serde = { workspace = true }
+ron = { workspace = true }
+
+# 性能分析
+profiling = { workspace = true }
+tracy-client = { workspace = true, optional = true }
+
+[features]
+# 默认不启用，避免在 Windows / CI 环境里因为原生依赖导致编译失败
+default = []
+tracy = ["dep:tracy-client"]
+
+[dev-dependencies]
+winit = { workspace = true }
+pollster = "0.4"
+engine-app = { path = "../engine-app" }

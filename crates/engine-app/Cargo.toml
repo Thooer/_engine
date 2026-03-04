@@ -1,0 +1,15 @@
+[package]
+name = "engine-app"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Team"]
+description = "ToyEngine 应用层：winit 事件循环与运行时执行流"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+engine-core = { path = "../engine-core" }
+engine-renderer = { path = "../engine-renderer" }
+
+winit = { workspace = true }
+pollster = "0.4"
+

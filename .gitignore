@@ -1,0 +1,34 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+# Cargo.lock - 应用项目应该提交，库项目不提交
+# 对于游戏引擎这种应用项目，建议提交 Cargo.lock 以确保版本一致性
+# Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Debug
+*.dSYM/
+
+# Profiling
+*.profdata
+
+# Editor backup files
+*~
+.#*

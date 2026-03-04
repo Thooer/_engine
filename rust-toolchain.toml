@@ -1,0 +1,12 @@
+# 锁定 Rust 工具链版本，确保所有开发者使用相同版本
+[toolchain]
+channel = "stable"
+# 或者指定具体版本
+# channel = "1.75.0"
+
+# 组件
+components = ["rustfmt", "clippy"]
+
+# 配置文件，确保代码风格一致
+[rustfmt]
+edition = "2021"

@@ -1,0 +1,64 @@
+//! ToyEngine 应用层：封装 winit 事件循环与基础“执行流”。
+//!
+//! 目标：让 examples 只关注场景与渲染逻辑（init/update/render），不再重复写窗口与事件循环样板代码。
+
+use std::time::Instant;
+
+use engine_core::input::InputState;
+use engine_renderer::renderer::{
+    DefaultSurfaceContextNew, SurfaceContext, SurfaceContextNew, SurfaceContextTrait, SurfaceSize,
+};
+use winit::{
+    application::ApplicationHandler,
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
+    window::Window,
+};
+
+#[derive(Clone, Copy, Debug)]
+pub struct AppConfig {
+    pub title: &'static str,
+    pub max_frames: Option<u32>,
+    pub fixed_dt_seconds: Option<f32>,
+}
+
+pub struct Engine {
+    window: Option<&'static Window>,
+    ctx: Option<SurfaceContext<'static>>,
+    input: InputState,
+    exit_requested: bool,
+    frame_index: u32,
+}
+
+pub trait App {
+    fn on_start(&mut self, _engine: &mut Engine) {}
+    fn on_window_event(&mut self, _engine: &mut Engine, _event: &WindowEvent) {}
+    fn on_resize(&mut self, _engine: &mut Engine, _new_size: SurfaceSize) {}
+    fn on_update(&mut self, _engine: &mut Engine, _dt_seconds: f32) {}
+    fn on_render(&mut self, _engine: &mut Engine) {}
+}
+
+pub struct AppRunner<A: App> {
+    config: AppConfig,
+    app: A,
+    engine: Engine,
+    last_frame_time: Option<Instant>,
+}
+
+#[path = "Default_AppConfig.rs"]
+mod default_app_config;
+
+#[path = "Inherent_Engine.rs"]
+mod inherent_engine;
+
+#[path = "Inherent_AppRunner.rs"]
+mod inherent_app_runner;
+
+#[path = "ApplicationHandler_AppRunner.rs"]
+mod application_handler_app_runner;
+
+#[path = "RunApp_run_app.rs"]
+mod run_app_run_app;
+
+pub use run_app_run_app::run_app;
+

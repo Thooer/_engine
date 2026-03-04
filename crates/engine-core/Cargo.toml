@@ -1,0 +1,38 @@
+[package]
+name = "engine-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Team"]
+description = "ToyEngine 核心系统"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# 核心依赖
+bevy_ecs = { workspace = true }
+glam = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# 平台层
+winit = { workspace = true }
+raw-window-handle = { workspace = true }
+gilrs = { workspace = true }
+
+# 多线程
+rayon = { workspace = true }
+tokio = { workspace = true }
+
+# 事件系统
+crossbeam-channel = { workspace = true }
+
+# 反射
+bevy_reflect = { workspace = true }
+
+# 资源
+serde = { workspace = true }
+bincode = { workspace = true }
+ron = { workspace = true }
+
+# 文件系统
+notify = { workspace = true }
+vfs = { workspace = true }

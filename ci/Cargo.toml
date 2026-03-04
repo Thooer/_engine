@@ -1,0 +1,40 @@
+[package]
+name = "ci"
+version = "0.1.0"
+edition = "2021"
+authors = ["GameEngine Team"]
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[[bin]]
+name = "ci"
+path = "src/main.rs"
+
+[dependencies]
+# CLI 工具
+clap = { version = "4.4", features = ["derive"] }
+
+# 错误处理
+anyhow = "1.0"
+
+# 序列化
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+
+# 文件系统遍历
+walkdir = "2.4"
+
+# Rust 代码解析
+syn = { version = "2.0", features = ["full", "parsing", "extra-traits", "visit", "visit-mut"] }
+proc-macro2 = "1.0"
+
+# 路径处理
+pathdiff = "0.2"
+
+# 输出格式化
+colored = "2.1"
+
+[dev-dependencies]
+# 测试工具
+tempfile = "3.8"

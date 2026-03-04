@@ -1,0 +1,108 @@
+# CI 配置文件
+# 基于新的模块结构规范
+
+# ============================================================================
+# 全局配置
+# ============================================================================
+[global]
+# 工作空间根目录（相对于配置文件）
+root = ""
+
+# 默认排除的路径模式
+exclude_patterns = [
+    "**/target/**",
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/thirdparty/**",
+    "**/scripts/**",
+    "**/projects/**",
+    # 示例程序更多是演示用法而不是严格的模块实现，这里从结构检查中排除
+    "**/crates/toyengine-renderer/examples/**",
+    # 渲染器旧的测试目录目前只保留为文档提示，不再作为正式模块结构的一部分
+    "**/crates/toyengine-renderer/tests",
+    "**/crates/toyengine-renderer/tests/**",
+    # 顶层 demo 应用作为样例入口，代码风格上不强制遵守 impl 文件拆分规则
+    "**/src/demo_app.rs",
+]
+
+# ============================================================================
+# 检查规则配置
+# ============================================================================
+[checks]
+# 是否启用所有检查
+enabled = true
+
+# mod.rs 检查：禁止包含任何形式的 impl
+[checks.mod_rs]
+enabled = true
+forbid_impl = true
+struct_must_be_public = true
+# mod.rs 中只能包含 pub 定义（trait, struct, enum, type, const, static, mod 等）
+# 禁止包含函数体、impl 块等实现代码
+
+# impl 文件检查：必须只有一个 impl 块，文件命名必须对应 trait
+[checks.impl_file]
+enabled = true
+# 要求：
+# 1. 文件必须只有一个 impl 块
+# 2. 文件命名必须和 impl 的 trait 对应（如 impl TraitName for Type -> trait_name.rs）
+# 3. 禁止 pub 关键字
+single_impl_only = true
+naming_must_match_trait = true
+forbid_pub = true
+
+# internal/ 目录检查
+[checks.internal]
+enabled = true
+# 要求：
+# 1. 禁止存在 mod.rs
+# 2. 每个 .rs 文件必须用 {} 大括号包裹
+# 3. 只包含函数体，不包含方法签名
+forbid_mod_rs = true
+require_brace_wrap = true
+only_function_body = true
+
+# tests/ 目录检查
+[checks.tests]
+enabled = true
+# 要求：
+# 1. 禁止存在 mod.rs
+# 2. 必须在 mod.rs 中声明模块，且必须跟在某个 trait 后
+# 3. 测试文件必须和 trait 同名
+forbid_mod_rs = true
+require_mod_declaration_in_parent = true
+test_file_must_match_trait = true
+
+# 禁止 xxximpl 或 xxxtests 命名
+[checks.naming]
+enabled = true
+forbid_impl_suffix = true  # 禁止 *impl.rs, *impl_*.rs 等
+forbid_tests_suffix = true  # 禁止 *tests.rs, *test.rs 等（tests 目录除外）
+
+# ============================================================================
+# 白名单配置（豁免规则）
+# ============================================================================
+
+# CI 工具本身豁免所有检查
+[[whitelist]]
+path = "ci"
+allowed_checks = []
+
+# 第三方库完全豁免
+[[whitelist]]
+path = "thirdparty"
+allowed_checks = []
+
+# ============================================================================
+# 输出配置
+# ============================================================================
+
+[output]
+# 输出格式
+format = "human"  # human | json | junit | github_actions
+# 是否使用彩色输出
+color = true
+# 是否显示详细信息
+verbose = false
+# 是否显示进度条
+progress = true

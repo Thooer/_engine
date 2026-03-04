@@ -1,0 +1,101 @@
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Team"]
+description = "A modern game engine built with Rust"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# 核心模块
+engine-core = { path = "crates/engine-core" }
+engine-renderer = { path = "crates/engine-renderer" }
+
+# 日志
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[features]
+default = []
+# 统一开关：`cargo run --features tracy`
+tracy = ["engine-renderer/tracy"]
+
+[workspace]
+members = [
+    "crates/engine-core",
+    "crates/engine-renderer",
+    "crates/engine-app",
+]
+# 未来可以添加更多子 crate
+
+[workspace.dependencies]
+# 核心依赖
+bevy_ecs = "0.18"
+glam = "0.27"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# 平台层
+winit = "0.30"
+raw-window-handle = "0.6"
+gilrs = "0.11"
+
+# 图形
+wgpu = "28"
+naga = "0.20"
+
+# 物理
+rapier3d = "0.32"
+rapier2d = "0.32"
+
+# 音频
+kira = "0.12"
+
+# UI
+egui = "0.33"
+egui-wgpu = "0.33"
+egui-winit = "0.33"
+
+# 资源
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.3"
+ron = "0.8"
+image = "0.25"
+gltf = "1.4"
+ktx2 = "0.4"
+ddsfile = "0.5"
+
+# 文件系统与热重载
+notify = "6.1"
+vfs = "0.12"
+
+# 多线程
+rayon = "1.10"
+tokio = { version = "1.40", features = ["full"] }
+
+# 性能分析
+profiling = "1.0"
+tracy-client = "0.18"
+
+# 数据布局辅助
+bytemuck = { version = "1.16", features = ["derive"] }
+
+# 反射（如果需要）
+bevy_reflect = "0.18"
+
+# 事件系统（如果需要）
+crossbeam-channel = "0.5"
+
+# WASM 运行时（脚本系统）
+wasmtime = "22.0"
+wasm-bindgen = "0.2"
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+debug = false
