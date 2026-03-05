@@ -1,11 +1,15 @@
-use toyengine_app::{run_app, App, AppConfig, Engine};
+use toyengine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
 use toyengine_renderer::renderer::{FrameStartError, SurfaceContextTrait};
 
 struct ClearDemoApp {
     frames: u32,
 }
 
-impl ClearDemoApp {
+trait ClearDemoAppTrait {
+    fn draw(&mut self, engine: &mut Engine);
+}
+
+impl ClearDemoAppTrait for ClearDemoApp {
     fn draw(&mut self, engine: &mut Engine) {
         let ctx = engine.ctx_mut();
 
@@ -60,14 +64,13 @@ impl App for ClearDemoApp {
 }
 
 fn main() {
-    run_app(
+    RunApp::run_app(
         AppConfig {
             title: "ToyEngine Clear Demo",
             max_frames: Some(120),
             fixed_dt_seconds: Some(1.0 / 60.0),
         },
         ClearDemoApp { frames: 0 },
-    )
-    .expect("run app failed");
+    );
 }
 

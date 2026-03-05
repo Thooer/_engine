@@ -77,6 +77,19 @@ impl ParsedFile {
         })
     }
 
+    /// 检查是否包含固有实现（inherent impl，即没有 trait 的 impl）
+    pub fn has_inherent_impl(&self) -> bool {
+        self.impls.iter().any(|impl_block| impl_block.trait_.is_none())
+    }
+
+    /// 获取所有固有实现的类型名
+    pub fn get_inherent_impl_types(&self) -> Vec<String> {
+        self.impls.iter()
+            .filter(|impl_block| impl_block.trait_.is_none())
+            .filter_map(|impl_block| extract_type_name(&impl_block.self_ty))
+            .collect()
+    }
+
     /// 获取 impl 块中的 type 名（提取主要类型名，忽略泛型参数和生命周期）
     pub fn get_impl_type_name(&self) -> Option<String> {
         self.impls.first().and_then(|impl_block| {

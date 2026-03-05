@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 use std::sync::Arc;
 
 use bytemuck::{Pod, Zeroable};
-use toyengine_app::{run_app, App, AppConfig, Engine};
+use toyengine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
 use toyengine_core::fs::LocalFileSystem;
 use toyengine_core::resources::{AssetManager, AssetManagerExt, MeshAsset};
 use toyengine_renderer::renderer::{
@@ -50,7 +50,14 @@ struct Phase4AssetDemoApp {
     frames: u32,
 }
 
-impl Phase4AssetDemoApp {
+trait Phase4AssetDemoAppTrait {
+    fn new() -> Self;
+    fn build_resources(ctx: &SurfaceContext) -> (SimpleMeshPipeline2DPipeline, Arc<MeshAsset>);
+    fn animated_vertices(&self) -> Vec<Vertex>;
+    fn draw(&mut self, engine: &mut Engine);
+}
+
+impl Phase4AssetDemoAppTrait for Phase4AssetDemoApp {
     fn new() -> Self {
         Self {
             pipe: None,
@@ -145,7 +152,7 @@ impl Phase4AssetDemoApp {
 
 impl App for Phase4AssetDemoApp {
     fn on_start(&mut self, engine: &mut Engine) {
-        let (pipe, asset) = Self::build_resources(engine.ctx());
+        let (pipe, asset) = <Phase4AssetDemoApp as Phase4AssetDemoAppTrait>::build_resources(engine.ctx());
 
         let base_vertices: Vec<Vertex> = asset
             .positions
@@ -173,14 +180,13 @@ impl App for Phase4AssetDemoApp {
 }
 
 fn main() {
-    run_app(
+    RunApp::run_app(
         AppConfig {
             title: "ToyEngine Phase 4 Asset Demo",
             max_frames: PHASE4_DEMO_CONFIG.max_frames,
             fixed_dt_seconds: Some(1.0 / 60.0),
         },
-        Phase4AssetDemoApp::new(),
-    )
-    .expect("run app failed");
+        <Phase4AssetDemoApp as Phase4AssetDemoAppTrait>::new(),
+    );
 }
 

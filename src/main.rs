@@ -4,7 +4,7 @@
 
 mod demo_app;
 
-use engine_core::app::run;
+use engine_core::app::{EngineRunner, EngineRunnerTrait};
 use demo_app::DemoApp;
 
 fn main() {
@@ -22,7 +22,7 @@ fn main() {
     // 创建并运行演示应用
     let app = DemoApp::new();
     
-    if let Err(e) = run(app) {
+    if let Err(e) = EngineRunner::run(app) {
         tracing::error!("引擎运行失败: {}", e);
         std::process::exit(1);
     }

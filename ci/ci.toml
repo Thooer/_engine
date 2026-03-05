@@ -17,7 +17,7 @@ exclude_patterns = [
     "**/scripts/**",
     "**/projects/**",
     # 示例程序更多是演示用法而不是严格的模块实现，这里从结构检查中排除
-    "**/crates/toyengine-renderer/examples/**",
+    "**/examples/**",
     # 渲染器旧的测试目录目前只保留为文档提示，不再作为正式模块结构的一部分
     "**/crates/toyengine-renderer/tests",
     "**/crates/toyengine-renderer/tests/**",
@@ -45,11 +45,13 @@ struct_must_be_public = true
 enabled = true
 # 要求：
 # 1. 文件必须只有一个 impl 块
-# 2. 文件命名必须和 impl 的 trait 对应（如 impl TraitName for Type -> trait_name.rs）
+# 2. 文件命名必须和 impl 的 trait 对应（如 impl TraitName for Type -> TraitName_Type.rs）
 # 3. 禁止 pub 关键字
+# 4. 禁止固有实现（inherent impl），强制所有实现都通过 trait
 single_impl_only = true
 naming_must_match_trait = true
 forbid_pub = true
+forbid_inherent_impl = true
 
 # internal/ 目录检查
 [checks.internal]

@@ -1,7 +1,7 @@
 use winit::event::{ElementState, KeyEvent, WindowEvent};
 use winit::keyboard::KeyCode;
 
-use super::{extract_keycode_from_keyboard_event, InputState, InputStateExt};
+use super::{InputState, InputStateExt, KeyCodeExtractor, KeyCodeExtractorTrait};
 
 impl InputStateExt for InputState {
     fn new() -> Self {
@@ -25,7 +25,7 @@ impl InputStateExt for InputState {
                 ..
             } => {
                 // winit 0.30 把 KeyCode 放在 physical_key 里，这里仅使用物理按键码。
-                if let Some(keycode) = extract_keycode_from_keyboard_event(event) {
+                if let Some(keycode) = KeyCodeExtractor::extract_keycode_from_keyboard_event(event) {
                     match state {
                         ElementState::Pressed => {
                             if self.pressed.insert(keycode) {

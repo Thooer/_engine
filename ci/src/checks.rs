@@ -257,6 +257,32 @@ impl Checker {
                 continue;
             }
 
+            // ========== 固有实现检查 ==========
+            // 检查：禁止固有实现（inherent impl），强制所有实现都通过 trait
+            if self.config.checks.impl_file.forbid_inherent_impl && parsed.has_inherent_impl() {
+                let inherent_types = parsed.get_inherent_impl_types();
+                let line = parsed.find_impl_line_number();
+                
+                if inherent_types.is_empty() {
+                    self.report.add_error_with_line(
+                        path.clone(),
+                        "禁止固有实现（inherent impl）。所有方法必须通过 trait 暴露，然后在实现文件中 impl trait".to_string(),
+                        line,
+                    );
+                } else {
+                    let type_list = inherent_types.join("、");
+                    self.report.add_error_with_line(
+                        path.clone(),
+                        format!(
+                            "禁止固有实现（inherent impl）：{}。所有方法必须通过 trait 暴露，然后在实现文件中 impl trait",
+                            type_list
+                        ),
+                        line,
+                    );
+                }
+                continue;
+            }
+
             // ========== 结构性问题检查 ==========
             // 检查：必须只有一个 impl 块（除非所有 impl 块都是空的且是同一个 trait）
             let has_multiple_impls = impl_count > 1;

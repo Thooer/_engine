@@ -46,19 +46,19 @@ pub trait InputStateExt {
     fn just_released(&self, key: KeyCode) -> bool;
 }
 
-/// 从 `WindowEvent::KeyboardInput` 中提取 `KeyCode`。
-///
-/// 这里单独封装一层，方便后续适配 winit API 变更。
-fn extract_keycode_from_keyboard_event(event: &WindowEvent) -> Option<KeyCode> {
-    if let WindowEvent::KeyboardInput { event: key_event, .. } = event {
-        // 目前仅使用物理按键码，避免布局差异
-        if let winit::keyboard::PhysicalKey::Code(code) = key_event.physical_key {
-            return Some(code);
-        }
-    }
-    None
+/// 从 `WindowEvent::KeyboardInput` 中提取 `KeyCode` 的辅助工具。
+pub struct KeyCodeExtractor;
+
+pub trait KeyCodeExtractorTrait {
+    /// 从 `WindowEvent::KeyboardInput` 中提取 `KeyCode`。
+    ///
+    /// 这里单独封装一层，方便后续适配 winit API 变更。
+    fn extract_keycode_from_keyboard_event(event: &WindowEvent) -> Option<KeyCode>;
 }
 
 #[path = "InputStateExt_InputState.rs"]
 mod inputstateext_inputstate;
+
+#[path = "KeyCodeExtractorTrait_KeyCodeExtractor.rs"]
+mod keycode_extractor_trait_keycode_extractor;
 

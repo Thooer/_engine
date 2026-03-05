@@ -103,6 +103,9 @@ pub struct ImplFileCheck {
     pub naming_must_match_trait: bool,
     #[serde(default = "default_true")]
     pub forbid_pub: bool,
+    /// 禁止固有实现（inherent impl），强制所有实现都通过 trait
+    #[serde(default = "default_true")]
+    pub forbid_inherent_impl: bool,
 }
 
 impl Default for ImplFileCheck {
@@ -112,6 +115,7 @@ impl Default for ImplFileCheck {
             single_impl_only: true,
             naming_must_match_trait: true,
             forbid_pub: true,
+            forbid_inherent_impl: true,
         }
     }
 }

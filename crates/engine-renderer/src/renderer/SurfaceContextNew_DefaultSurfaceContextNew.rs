@@ -1,6 +1,6 @@
 use crate::renderer::{
-    backends_from_env, surface_size_is_zero, wgpu_debug_on, DefaultSurfaceContextNew,
-    SurfaceContext, SurfaceContextNew, SurfaceSize,
+    DefaultSurfaceContextNew, SurfaceContext, SurfaceContextNew, SurfaceSize,
+    SurfaceSizeHelper, SurfaceSizeHelperTrait, WgpuConfigHelper, WgpuConfigHelperTrait,
 };
 
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
@@ -13,7 +13,7 @@ impl SurfaceContextNew for DefaultSurfaceContextNew {
     where
         W: HasWindowHandle + HasDisplayHandle + Sync + ?Sized,
     {
-        let backends_list = backends_from_env().unwrap_or_else(|| {
+        let backends_list = WgpuConfigHelper::backends_from_env().unwrap_or_else(|| {
             vec![
                 wgpu::Backends::VULKAN,
                 wgpu::Backends::DX12,
@@ -24,7 +24,7 @@ impl SurfaceContextNew for DefaultSurfaceContextNew {
         let mut last_device_err: Option<wgpu::RequestDeviceError> = None;
 
         for backends in backends_list {
-            if wgpu_debug_on() {
+            if WgpuConfigHelper::wgpu_debug_on() {
                 println!("wgpu: try backends: {backends:?}");
             }
             let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
@@ -45,7 +45,7 @@ impl SurfaceContextNew for DefaultSurfaceContextNew {
             {
                 Ok(v) => v,
                 Err(e) => {
-                    if wgpu_debug_on() {
+                    if WgpuConfigHelper::wgpu_debug_on() {
                         println!("wgpu: request_adapter failed: {e:?}");
                     }
                     continue;
@@ -53,7 +53,7 @@ impl SurfaceContextNew for DefaultSurfaceContextNew {
             };
 
             let info = adapter.get_info();
-            if wgpu_debug_on() {
+            if WgpuConfigHelper::wgpu_debug_on() {
                 println!("wgpu: adapter: {:?} {}", info.backend, info.name);
             }
 
@@ -72,7 +72,7 @@ impl SurfaceContextNew for DefaultSurfaceContextNew {
             {
                 Ok(v) => v,
                 Err(e) => {
-                    if wgpu_debug_on() {
+                    if WgpuConfigHelper::wgpu_debug_on() {
                         println!("wgpu: request_device failed: {e:?}");
                     }
                     last_device_err = Some(e);
@@ -108,7 +108,7 @@ impl SurfaceContextNew for DefaultSurfaceContextNew {
                 desired_maximum_frame_latency: 2,
             };
 
-            if !surface_size_is_zero(size) {
+            if !SurfaceSizeHelper::surface_size_is_zero(size) {
                 surface.configure(&device, &config);
             }
 

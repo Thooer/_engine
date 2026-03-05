@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use toyengine_app::{run_app, App, AppConfig, Engine};
+use toyengine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
 use toyengine_renderer::renderer::{FrameStartError, SurfaceContextTrait};
 
 const TRI_WGSL: &str = r#"
@@ -39,7 +39,12 @@ struct TriangleDemoApp {
     frames: u32,
 }
 
-impl TriangleDemoApp {
+trait TriangleDemoAppTrait {
+    fn build_pipe(ctx: &toyengine_renderer::renderer::SurfaceContext) -> wgpu::RenderPipeline;
+    fn draw(&mut self, engine: &mut Engine);
+}
+
+impl TriangleDemoAppTrait for TriangleDemoApp {
     fn build_pipe(ctx: &toyengine_renderer::renderer::SurfaceContext) -> wgpu::RenderPipeline {
         let device = ctx.device();
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -134,7 +139,7 @@ impl TriangleDemoApp {
 
 impl App for TriangleDemoApp {
     fn on_start(&mut self, engine: &mut Engine) {
-        let pipe = Self::build_pipe(engine.ctx());
+        let pipe = <TriangleDemoApp as TriangleDemoAppTrait>::build_pipe(engine.ctx());
         self.pipe = Some(pipe);
     }
 
@@ -144,7 +149,7 @@ impl App for TriangleDemoApp {
 }
 
 fn main() {
-    run_app(
+    RunApp::run_app(
         AppConfig {
             title: "ToyEngine Triangle Demo",
             max_frames: Some(240),
@@ -154,7 +159,6 @@ fn main() {
             pipe: None,
             frames: 0,
         },
-    )
-    .expect("run app failed");
+    );
 }
 

@@ -11,6 +11,14 @@ license = "MIT OR Apache-2.0"
 name = "ci"
 path = "src/main.rs"
 
+[lib]
+path = "src/lib.rs"
+
+# 测试目录重命名为 unit_tests，避免与 CI 规则中的 tests 目录冲突
+[[test]]
+name = "integration"
+path = "unit_tests/integration_test.rs"
+
 [dependencies]
 # CLI 工具
 clap = { version = "4.4", features = ["derive"] }

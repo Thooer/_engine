@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use toyengine_app::{run_app, App, AppConfig, Engine};
+use toyengine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
 use toyengine_core::ecs::{Camera2D, Renderable, Transform, World};
 use toyengine_renderer::materials::{InstanceBatch2D, Mesh2D};
 use toyengine_renderer::renderer::{
@@ -75,7 +75,15 @@ struct EcsSceneDemoApp {
     frames: u32,
 }
 
-impl EcsSceneDemoApp {
+trait EcsSceneDemoAppTrait {
+    fn new() -> Self;
+    fn build_resources(ctx: &SurfaceContext) -> (InstanceColorMeshPipeline2DPipeline, Mesh2D);
+    fn collect_instances(&mut self) -> Vec<InstanceData>;
+    fn update_camera(&mut self, engine: &Engine, dt: f32);
+    fn draw(&mut self, engine: &mut Engine);
+}
+
+impl EcsSceneDemoAppTrait for EcsSceneDemoApp {
     fn new() -> Self {
         let mut world = World::new();
 
@@ -271,7 +279,7 @@ impl EcsSceneDemoApp {
 
 impl App for EcsSceneDemoApp {
     fn on_start(&mut self, engine: &mut Engine) {
-        let (pipe, mesh) = Self::build_resources(engine.ctx());
+        let (pipe, mesh) = <EcsSceneDemoApp as EcsSceneDemoAppTrait>::build_resources(engine.ctx());
         self.pipe = Some(pipe);
         self.mesh = Some(mesh);
     }
@@ -286,14 +294,13 @@ impl App for EcsSceneDemoApp {
 }
 
 fn main() {
-    run_app(
+    RunApp::run_app(
         AppConfig {
             title: "ToyEngine ECS Scene Demo",
             max_frames: Some(240),
             fixed_dt_seconds: Some(1.0 / 60.0),
         },
-        EcsSceneDemoApp::new(),
-    )
-    .expect("run app failed");
+        <EcsSceneDemoApp as EcsSceneDemoAppTrait>::new(),
+    );
 }
 

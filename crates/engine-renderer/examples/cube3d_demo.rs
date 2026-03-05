@@ -1,4 +1,4 @@
-use toyengine_app::{run_app, App, AppConfig, Engine};
+use toyengine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
 use toyengine_renderer::renderer::{
     create_simple_mesh3d_resources, draw_simple_mesh3d_pass, SimpleMesh3DPassConfig,
     SimpleMesh3DResources, SurfaceContextTrait, SurfaceSize,
@@ -16,7 +16,18 @@ struct Cube3DDemo {
     world: World,
 }
 
-impl Cube3DDemo {
+trait Cube3DDemoTrait {
+    fn new() -> Self;
+    fn update_camera(&mut self, engine: &Engine, dt: f32);
+    fn create_depth_texture_internal(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+    ) -> wgpu::TextureView;
+    fn draw(&mut self, engine: &mut Engine);
+}
+
+impl Cube3DDemoTrait for Cube3DDemo {
     fn new() -> Self {
         let mut world = World::new();
 
@@ -157,7 +168,7 @@ impl Cube3DDemo {
 impl App for Cube3DDemo {
     fn on_start(&mut self, engine: &mut Engine) {
         let mesh = create_simple_mesh3d_resources(engine.ctx().device(), engine.ctx().color_format());
-        let depth_view = Self::create_depth_texture_internal(
+        let depth_view = <Cube3DDemo as Cube3DDemoTrait>::create_depth_texture_internal(
             engine.ctx().device(),
             engine.ctx().size().width,
             engine.ctx().size().height,
@@ -169,7 +180,7 @@ impl App for Cube3DDemo {
 
     fn on_resize(&mut self, engine: &mut Engine, new_size: SurfaceSize) {
         let depth_view =
-            Self::create_depth_texture_internal(engine.ctx().device(), new_size.width, new_size.height);
+            <Cube3DDemo as Cube3DDemoTrait>::create_depth_texture_internal(engine.ctx().device(), new_size.width, new_size.height);
         self.depth_texture = Some(depth_view);
     }
 
@@ -183,13 +194,12 @@ impl App for Cube3DDemo {
 }
 
 fn main() {
-    run_app(
+    RunApp::run_app(
         AppConfig {
             title: "ToyEngine 3D Cube Demo",
             max_frames: Some(MAX_FRAMES),
             fixed_dt_seconds: Some(1.0 / 60.0),
         },
-        Cube3DDemo::new(),
-    )
-    .expect("run app failed");
+        <Cube3DDemo as Cube3DDemoTrait>::new(),
+    );
 }

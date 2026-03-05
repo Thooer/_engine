@@ -1,7 +1,8 @@
 //! SurfaceContextTrait for SurfaceContext
 
 use crate::renderer::{
-    surface_size_is_zero, FrameStartError, SurfaceContext, SurfaceContextTrait, SurfaceSize,
+    FrameStartError, SurfaceContext, SurfaceContextTrait, SurfaceSize,
+    SurfaceSizeHelper, SurfaceSizeHelperTrait,
 };
 
 fn surface_cfg_with_size(mut cfg: wgpu::SurfaceConfiguration, size: SurfaceSize) -> wgpu::SurfaceConfiguration {
@@ -11,7 +12,7 @@ fn surface_cfg_with_size(mut cfg: wgpu::SurfaceConfiguration, size: SurfaceSize)
 }
 
 fn surface_recfg<'w>(ctx: &mut SurfaceContext<'w>) {
-    if surface_size_is_zero(ctx.size) {
+    if SurfaceSizeHelper::surface_size_is_zero(ctx.size) {
         return;
     }
     let cfg = surface_cfg_with_size(ctx.config.clone(), ctx.size);
@@ -45,7 +46,7 @@ impl<'w> SurfaceContextTrait for SurfaceContext<'w> {
     fn frame_start(
         &mut self,
     ) -> Result<(wgpu::SurfaceTexture, wgpu::TextureView), FrameStartError> {
-        if surface_size_is_zero(self.size) {
+        if SurfaceSizeHelper::surface_size_is_zero(self.size) {
             return Err(FrameStartError::NoSurfaceSize);
         }
 

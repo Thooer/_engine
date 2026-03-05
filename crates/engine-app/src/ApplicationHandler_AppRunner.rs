@@ -11,7 +11,7 @@ use winit::{
     window::Window,
 };
 
-use super::{App, AppRunner};
+use super::{App, AppRunner, AppRunnerTrait, EngineTrait};
 
 impl<A: App> ApplicationHandler for AppRunner<A> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {

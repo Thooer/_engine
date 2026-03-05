@@ -1,5 +1,6 @@
 # Rust
 /target/
+**/target/
 **/*.rs.bk
 *.pdb
 # Cargo.lock - 应用项目应该提交，库项目不提交

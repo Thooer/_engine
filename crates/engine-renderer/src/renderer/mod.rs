@@ -13,26 +13,17 @@ pub struct SurfaceSize {
     pub height: u32,
 }
 
-pub fn surface_size_is_zero(size: SurfaceSize) -> bool {
-    size.width == 0 || size.height == 0
+pub struct SurfaceSizeHelper;
+
+pub trait SurfaceSizeHelperTrait {
+    fn surface_size_is_zero(size: SurfaceSize) -> bool;
 }
 
-fn wgpu_debug_on() -> bool {
-    std::env::var_os("TOYENGINE_WGPU_DEBUG").is_some()
-}
+pub struct WgpuConfigHelper;
 
-fn backends_from_env() -> Option<Vec<wgpu::Backends>> {
-    let v = std::env::var("TOYENGINE_WGPU_BACKEND").ok()?;
-    let v = v.trim().to_ascii_lowercase();
-    let backends = match v.as_str() {
-        "vulkan" | "vk" => vec![wgpu::Backends::VULKAN],
-        "dx12" | "d3d12" => vec![wgpu::Backends::DX12],
-        "gl" | "opengl" => vec![wgpu::Backends::GL],
-        "primary" => vec![wgpu::Backends::PRIMARY],
-        "all" => vec![wgpu::Backends::all()],
-        _ => return None,
-    };
-    Some(backends)
+pub trait WgpuConfigHelperTrait {
+    fn wgpu_debug_on() -> bool;
+    fn backends_from_env() -> Option<Vec<wgpu::Backends>>;
 }
 
 #[derive(Debug)]
@@ -164,6 +155,12 @@ pub struct DefaultSurfaceContextNew;
 
 #[path = "SurfaceContextTrait_SurfaceContext.rs"]
 mod surface_context_trait_surface_context;
+
+#[path = "SurfaceSizeHelperTrait_SurfaceSizeHelper.rs"]
+mod surface_size_helper_trait_surface_size_helper;
+
+#[path = "WgpuConfigHelperTrait_WgpuConfigHelper.rs"]
+mod wgpu_config_helper_trait_wgpu_config_helper;
 
 #[path = "SimpleMeshPipeline2D_SimpleMeshPipeline2DPipeline.rs"]
 mod simple_mesh_pipeline2d_simple_mesh_pipeline2d_pipeline;
