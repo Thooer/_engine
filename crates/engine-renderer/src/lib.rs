@@ -10,3 +10,6 @@ pub mod materials;
 
 /// UI 模块
 pub mod ui;
+
+/// 通用图形基础
+pub mod graphics;

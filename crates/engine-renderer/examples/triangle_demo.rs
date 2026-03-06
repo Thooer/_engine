@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
-use toyengine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
-use toyengine_renderer::renderer::{FrameStartError, SurfaceContextTrait};
+use engine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
+use engine_renderer::renderer::{FrameStartError, SurfaceContextTrait};
 
 const TRI_WGSL: &str = r#"
 struct VsOut {
@@ -40,12 +40,12 @@ struct TriangleDemoApp {
 }
 
 trait TriangleDemoAppTrait {
-    fn build_pipe(ctx: &toyengine_renderer::renderer::SurfaceContext) -> wgpu::RenderPipeline;
+    fn build_pipe(ctx: &engine_renderer::renderer::SurfaceContext) -> wgpu::RenderPipeline;
     fn draw(&mut self, engine: &mut Engine);
 }
 
 impl TriangleDemoAppTrait for TriangleDemoApp {
-    fn build_pipe(ctx: &toyengine_renderer::renderer::SurfaceContext) -> wgpu::RenderPipeline {
+    fn build_pipe(ctx: &engine_renderer::renderer::SurfaceContext) -> wgpu::RenderPipeline {
         let device = ctx.device();
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("tri shader"),

@@ -1,10 +1,10 @@
-use toyengine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
-use toyengine_renderer::renderer::{
+use engine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
+use engine_renderer::renderer::{
     create_simple_mesh3d_resources, draw_simple_mesh3d_pass, SimpleMesh3DPassConfig,
     SimpleMesh3DResources, SurfaceContextTrait, SurfaceSize,
 };
-use toyengine_core::camera::camera3d_fly_wasd;
-use toyengine_core::ecs::{Camera3D, Transform, World};
+use engine_core::camera::camera3d_fly_wasd;
+use engine_core::ecs::{Camera3D, Transform, World};
 
 use glam::{Mat4, Quat, Vec3};
 
