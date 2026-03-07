@@ -2,7 +2,11 @@
 //!
 //! 注意：本模块文件禁止出现特定关键字串，所以这里只放类型与 trait 声明。
 
+use engine_core::ecs::Transform;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use std::collections::HashMap;
+use std::sync::Arc;
+use crate::graphics::{GpuMaterial, GpuShader, GpuMesh, GpuModel, Texture, DirectLight, PointLight};
 
 pub use self::simple_mesh2d_pass_draw::{draw_simple_mesh2d_pass, SimpleMesh2DPassConfig};
 pub use self::simple_mesh3d_pass_draw::{draw_simple_mesh3d_pass, SimpleMesh3DPassConfig};
@@ -51,6 +55,7 @@ pub trait SurfaceContextTrait {
     fn device(&self) -> &wgpu::Device;
     fn queue(&self) -> &wgpu::Queue;
     fn color_format(&self) -> wgpu::TextureFormat;
+    fn config(&self) -> &wgpu::SurfaceConfiguration;
 
     fn resize(&mut self, new_size: SurfaceSize);
 
@@ -153,6 +158,31 @@ pub trait SurfaceContextNew {
 #[derive(Debug, Default)]
 pub struct DefaultSurfaceContextNew;
 
+pub struct MainRenderer {
+    // 渲染资源缓存
+    pub material_cache: HashMap<String, Arc<GpuMaterial>>,
+    pub shader_cache: HashMap<String, Arc<GpuShader>>,
+    pub texture_cache: HashMap<String, Arc<Texture>>,
+    pub mesh_cache: HashMap<String, Arc<GpuMesh>>,
+    pub model_cache: HashMap<String, Arc<GpuModel>>,
+
+    // 离屏纹理
+    pub screen_texture: Arc<Texture>,
+    pub depth_texture: Arc<Texture>,
+
+    // 待渲染的物体
+    pub model_objects: Vec<(Arc<GpuModel>, Transform)>,
+    pub direct_lights: Vec<DirectLight>,
+    pub point_lights: Vec<PointLight>,
+}
+
+pub trait RendererTrait {
+    fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C) -> Self;
+    fn resize<C: SurfaceContextTrait + ?Sized>(&mut self, ctx: &C);
+    fn collect_render_objects(&mut self);
+    fn render<C: SurfaceContextTrait + ?Sized>(&mut self, ctx: &mut C) -> Result<(), FrameStartError>;
+}
+
 #[path = "SurfaceContextTrait_SurfaceContext.rs"]
 mod surface_context_trait_surface_context;
 
@@ -179,6 +209,9 @@ mod simple_mesh3d_pass_draw;
 
 #[path = "SimpleMesh3D_CubeMesh.rs"]
 mod simple_mesh3d_cube_mesh;
+
+#[path = "RendererTrait_MainRenderer.rs"]
+mod renderer_trait_main_renderer;
 
 pub use self::simple_mesh3d_cube_mesh::{
     create_colored_cube_vertices_indices, create_simple_mesh3d_resources, SimpleMesh3DResources,

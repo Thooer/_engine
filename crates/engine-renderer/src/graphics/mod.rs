@@ -2,8 +2,10 @@
 //!
 //! 遵循“类型与实现分离”原则，本文件只包含 Struct/Enum/Trait 定义。
 
-use std::sync::Arc;
-use glam::{Vec2, Vec3, Vec4};
+use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use serde::Deserialize;
+use glam::Vec3;
 
 // ============================================================================
 //  Mesh (网格) & Primitive (图元)
@@ -21,22 +23,12 @@ pub struct Vertex {
     pub color: [f32; 4],
 }
 
-impl Vertex {
-    /// 获取顶点缓冲布局描述
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        const ATTRIBS: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
-            0 => Float32x3,
-            1 => Float32x3,
-            2 => Float32x2,
-            3 => Float32x4,
-        ];
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &ATTRIBS,
-        }
-    }
+pub trait VertexTrait {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }
+
+#[path = "VertexTrait_Vertex.rs"]
+mod gpu_vertex;
 
 /// 网格图元 (Submesh)
 ///
@@ -69,6 +61,13 @@ pub trait MeshTrait {
     fn primitives(&self) -> &[MeshPrimitive];
 }
 
+// texture
+pub struct Texture {
+    #[allow(unused)]
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+}
+
 // ============================================================================
 //  Material (材质)
 // ============================================================================
@@ -76,12 +75,9 @@ pub trait MeshTrait {
 /// 材质参数数据 (CPU 侧)
 ///
 /// 对应 Shader 中的 @group(2)
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct MaterialData {
-    pub base_color_factor: Vec4,
-    pub metallic_factor: f32,
-    pub roughness_factor: f32,
-    // 纹理句柄等后续添加...
+    pub inputs: Vec<MaterialInput>,
 }
 
 /// GPU 材质资源
@@ -115,24 +111,179 @@ pub trait ShaderTrait {
     fn pipeline(&self) -> &wgpu::RenderPipeline;
 }
 
-// 导出加载器
-#[path = "GpuShader_Loader.rs"]
+// ============================================================================
+//  Loaders & Generators (加载器与生成器)
+// ============================================================================
+
+/// 着色器加载器
+pub struct ShaderLoader {
+    pub root_dir: PathBuf,
+}
+
+pub trait ShaderLoaderTrait {
+    fn new(assets_dir: impl AsRef<Path>) -> Self;
+    fn load_shader_source(&self, shader_path: &str) -> Result<String, String>;
+    fn create_shader_module(
+        &self, 
+        device: &wgpu::Device, 
+        shader_path: &str, 
+        label: Option<&str>
+    ) -> Result<wgpu::ShaderModule, String>;
+}
+
+#[path = "ShaderLoaderTrait_ShaderLoader.rs"]
 pub mod gpu_shader_loader;
 
-#[cfg(test)]
-#[path = "GpuShader_Loader_Test.rs"]
-mod gpu_shader_loader_tests;
+#[derive(Debug, Deserialize)]
+pub struct MaterialFile {
+    pub materials: Vec<MaterialConfig>,
+}
 
-#[path = "GpuPipeline_Generator.rs"]
+#[derive(Debug, Deserialize)]
+pub struct MaterialConfig {
+    pub name: String,
+    pub shader: String,
+    pub inputs: Option<Vec<MaterialInput>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(tag = "type")]
+pub enum MaterialInput {
+    Texture { 
+        path: String,
+        #[serde(default)]
+        binding: u32,
+    },
+    // Sampler removed as per user request (using global sampler)
+    Uniform {
+        #[serde(default)]
+        size: u64,
+        #[serde(default)]
+        binding: u32,
+    },
+    Buffer { 
+        fields: Vec<UniformField>,
+        #[serde(default)]
+        binding: u32,
+    },
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct UniformField {
+    pub name: String,
+    pub r#type: String,
+}
+
+pub struct MaterialLoader;
+
+/// 材质加载结果资源包
+pub struct LoadedMaterialResources {
+    pub materials: HashMap<String, std::sync::Arc<GpuMaterial>>,
+    pub shaders: HashMap<String, std::sync::Arc<GpuShader>>,
+    pub textures: HashMap<String, std::sync::Arc<Texture>>,
+}
+
+/// 材质加载器接口
+pub trait MaterialLoaderTrait {
+    fn load_material_config(path: impl AsRef<Path>) -> Result<Vec<MaterialConfig>, String>;
+    fn create_bind_group_layout(device: &wgpu::Device, inputs: &[MaterialInput]) -> wgpu::BindGroupLayout;
+    
+    fn load_materials(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        path: impl AsRef<Path>,
+        pipeline_generator: &PipelineGenerator,
+        format: wgpu::TextureFormat,
+        depth_format: Option<wgpu::TextureFormat>,
+    ) -> Result<LoadedMaterialResources, String>;
+}
+
+#[path = "MaterialLoaderTrait_MaterialLoader.rs"]
+pub mod gpu_material_loader;
+
+/// Texture 生成器
+pub trait TextureLoader {
+    fn from_bytes(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        bytes: &[u8],
+        label: &str,
+    ) -> Result<Self, String>
+    where
+        Self: Sized;
+
+    fn from_image(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        img: &image::DynamicImage,
+        label: Option<&str>,
+    ) -> Result<Self, String>
+    where
+        Self: Sized;
+
+    fn create_render_target(
+        device: &wgpu::Device,
+        config: &wgpu::SurfaceConfiguration,
+        format: wgpu::TextureFormat,
+        label: &str,
+    ) -> Self;
+}
+
+#[path = "TextureLoader_Texture.rs"]
+pub mod gpu_texture_loader;
+
+/// Pipeline 生成器
+pub trait PipelineGeneratorTrait {
+    fn new(assets_dir: impl AsRef<Path>) -> Self;
+    
+    fn scan_and_generate_pipelines(
+        &self,
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        depth_format: Option<wgpu::TextureFormat>,
+    ) -> Result<HashMap<String, wgpu::RenderPipeline>, String>;
+    
+    fn create_pipeline(
+        &self,
+        device: &wgpu::Device,
+        shader_path: &str,
+        format: wgpu::TextureFormat,
+        depth_format: Option<wgpu::TextureFormat>,
+    ) -> Result<wgpu::RenderPipeline, String>;
+
+    fn create_frame_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout;
+
+    fn create_gpu_shader(
+        &self,
+        device: &wgpu::Device,
+        shader_path: &str,
+        format: wgpu::TextureFormat,
+        depth_format: Option<wgpu::TextureFormat>,
+        bind_group_layouts: &[&wgpu::BindGroupLayout],
+    ) -> Result<GpuShader, String>;
+}
+
+pub struct PipelineGenerator {
+    pub loader: ShaderLoader,
+    pub root_dir: PathBuf,
+}
+
+#[path = "PipelineGeneratorTrait_PipelineGenerator.rs"]
 pub mod gpu_pipeline_generator;
-
-#[cfg(test)]
-#[path = "GpuPipeline_Generator_Test.rs"]
-mod gpu_pipeline_generator_tests;
 
 // ============================================================================
 //  Model (模型)
 // ============================================================================
+
+use engine_core::ecs::Transform;
+
+/// 模型节点
+#[derive(Debug)]
+pub struct ModelNode {
+    pub transform: Transform,
+    pub mesh_index: Option<usize>,
+    pub children: Vec<ModelNode>,
+}
 
 /// 模型资源
 ///
@@ -140,6 +291,56 @@ mod gpu_pipeline_generator_tests;
 #[derive(Debug)]
 pub struct GpuModel {
     pub meshes: Vec<GpuMesh>,
-    pub materials: Vec<GpuMaterial>,
+    pub material_names: Vec<String>, // 存储材质名称
+    pub root_nodes: Vec<ModelNode>,  // 根节点列表
     pub name: String,
 }
+
+pub struct ModelLoader;
+
+pub trait ModelLoaderTrait {
+    fn load_gltf(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        path: impl AsRef<Path>,
+    ) -> Result<GpuModel, String>;
+}
+
+#[path = "ModelLoaderTrait_ModelLoader.rs"]
+pub mod gpu_model_loader;
+
+// ============================================================================
+//  Light (灯光)
+// ============================================================================
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct DirectLight {
+    pub direction: [f32; 3],
+    pub _padding: f32, // unused
+    pub color: [f32; 3],
+    pub intensity: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct PointLight {
+    pub position: [f32; 3],
+    pub range: f32, // packed
+    pub color: [f32; 3],
+    pub intensity: f32, // packed
+}
+
+pub trait DirectLightTrait {
+    fn new(direction: Vec3, color: Vec3, intensity: f32) -> Self;
+}
+
+pub trait PointLightTrait {
+    fn new(position: Vec3, color: Vec3, intensity: f32, range: f32) -> Self;
+}
+
+#[path = "DirectLightTrait_DirectLight.rs"]
+pub mod gpu_direct_light;
+
+#[path = "PointLightTrait_PointLight.rs"]
+pub mod gpu_point_light;

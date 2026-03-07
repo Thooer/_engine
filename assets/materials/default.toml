@@ -1,0 +1,13 @@
+[[materials]]
+name = "default"
+shader = "custom/basic_diffuse.wgsl"
+
+[[materials.inputs]]
+type = "Texture"
+path = "assets/textures/kane.png"
+
+[[materials.inputs]]
+type = "Buffer"
+fields = [
+    { name = "color_mod", type = "vec4" }
+]

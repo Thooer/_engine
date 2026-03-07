@@ -1,19 +1,17 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use wgpu;
-use crate::graphics::gpu_shader_loader::ShaderLoader;
+use crate::graphics::ShaderLoaderTrait;
+use crate::graphics::ShaderLoader;
+use crate::graphics::PipelineGenerator;
+use crate::graphics::PipelineGeneratorTrait;
+use crate::graphics::VertexTrait;
 use crate::graphics::Vertex;
 
-/// Pipeline 生成器
-///
-/// 负责扫描指定目录下的着色器文件，并自动生成 wgpu::RenderPipeline。
-pub struct PipelineGenerator {
-    loader: ShaderLoader,
-    root_dir: PathBuf,
-}
+use crate::graphics::GpuShader;
 
-impl PipelineGenerator {
-    pub fn new(assets_dir: impl AsRef<Path>) -> Self {
+impl PipelineGeneratorTrait for PipelineGenerator {
+    fn new(assets_dir: impl AsRef<Path>) -> Self {
         let root_dir = assets_dir.as_ref().join("shaders");
         Self {
             loader: ShaderLoader::new(assets_dir),
@@ -24,7 +22,7 @@ impl PipelineGenerator {
     /// 扫描 `assets/shaders/custom` 目录并为每个 `.wgsl` 文件生成 Pipeline
     ///
     /// 返回 Map: 相对路径 (如 "custom/basic_diffuse.wgsl") -> RenderPipeline
-    pub fn scan_and_generate_pipelines(
+    fn scan_and_generate_pipelines(
         &self,
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
@@ -62,38 +60,85 @@ impl PipelineGenerator {
         Ok(pipelines)
     }
 
-    /// 为单个着色器创建 Pipeline
-    ///
-    /// 默认假设：
-    /// - 顶点入口: `vs_main`
-    /// - 片元入口: `fs_main`
-    /// - 拓扑: `TriangleList`
-    /// - 剔除: `Back`
-    pub fn create_pipeline(
+    fn create_pipeline(
         &self,
         device: &wgpu::Device,
         shader_path: &str,
         format: wgpu::TextureFormat,
         depth_format: Option<wgpu::TextureFormat>,
     ) -> Result<wgpu::RenderPipeline, String> {
+        // Default to implicit layout if no layouts provided (or provide empty?)
+        // Since we are changing create_gpu_shader to require layouts, we need to handle this.
+        // For scan_and_generate, we might want to use implicit layout if we don't have config.
+        // But user said "don't use automatic derivation".
+        // Let's assume for scan_and_generate we might need to find a way, but for now
+        // we can pass an empty list and see if it works (it won't if shader uses groups).
+        // OR we allow create_gpu_shader to take Option.
+        self.create_gpu_shader(device, shader_path, format, depth_format, &[])
+            .map(|gpu_shader| gpu_shader.pipeline)
+    }
+
+    fn create_frame_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Camera Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                // Sampler Linear (Binding 1)
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                // Sampler Nearest (Binding 2)
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                    count: None,
+                },
+            ],
+        })
+    }
+
+    fn create_gpu_shader(
+        &self,
+        device: &wgpu::Device,
+        shader_path: &str,
+        format: wgpu::TextureFormat,
+        depth_format: Option<wgpu::TextureFormat>,
+        bind_group_layouts: &[&wgpu::BindGroupLayout],
+    ) -> Result<GpuShader, String> {
         // 1. 编译 ShaderModule
         let module = self.loader.create_shader_module(device, shader_path, Some(shader_path))?;
 
-
         // 2. Create Pipeline Layout
-        // 我们不创建显式的 Pipeline Layout，而是让 wgpu 根据 Shader 自动推导。
-        // 这样可以最大化 Shader 编写的自由度（例如随意添加 Texture/Sampler）。
-        // let layout = ... (removed)
+        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some(&format!("{} Layout", shader_path)),
+            bind_group_layouts,
+            immediate_size: 0,
+        });
+
+        let use_layout = if bind_group_layouts.is_empty() { None } else { Some(&layout) };
 
         // 3. 配置 Pipeline Descriptor
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some(shader_path),
-            layout: None, // Enable implicit layout derivation (关键修改！)
+            layout: use_layout, 
             vertex: wgpu::VertexState {
                 module: &module,
                 entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Vertex::desc()], // 使用 mod.rs 中定义的标准 Vertex Layout
+                buffers: &[<Vertex as VertexTrait>::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &module,
@@ -130,6 +175,10 @@ impl PipelineGenerator {
             cache: None,
         });
 
-        Ok(pipeline)
+        Ok(GpuShader {
+            module,
+            layout,
+            pipeline,
+        })
     }
 }

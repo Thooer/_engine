@@ -36,6 +36,10 @@ impl<'w> SurfaceContextTrait for SurfaceContext<'w> {
         self.config.format
     }
 
+    fn config(&self) -> &wgpu::SurfaceConfiguration {
+        &self.config
+    }
+
     fn resize(&mut self, new_size: SurfaceSize) {
         self.size = new_size;
         self.config.width = new_size.width;

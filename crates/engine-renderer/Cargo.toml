@@ -27,10 +27,11 @@ egui-winit = { workspace = true }
 
 # 资源
 image = { workspace = true }
-gltf = { workspace = true }
+gltf.workspace = true
 ktx2 = { workspace = true }
 ddsfile = { workspace = true }
 serde = { workspace = true }
+toml = "0.8"
 ron = { workspace = true }
 
 # 性能分析
