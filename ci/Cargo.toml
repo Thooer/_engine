@@ -19,6 +19,34 @@ path = "src/lib.rs"
 name = "integration"
 path = "unit_tests/integration_test.rs"
 
+[[test]]
+name = "impl_file_test"
+path = "unit_tests/impl_file_test.rs"
+
+[[test]]
+name = "mod_rs_test"
+path = "unit_tests/mod_rs_test.rs"
+
+[[test]]
+name = "naming_test"
+path = "unit_tests/naming_test.rs"
+
+[[test]]
+name = "parser_test"
+path = "unit_tests/parser_test.rs"
+
+[[test]]
+name = "tests_test"
+path = "unit_tests/tests_test.rs"
+
+[[test]]
+name = "internal_test"
+path = "unit_tests/internal_test.rs"
+
+[[test]]
+name = "fixer_test"
+path = "unit_tests/fixer_test.rs"
+
 [dependencies]
 # CLI 工具
 clap = { version = "4.4", features = ["derive"] }
@@ -36,9 +64,18 @@ walkdir = "2.4"
 # Rust 代码解析
 syn = { version = "2.0", features = ["full", "parsing", "extra-traits", "visit", "visit-mut"] }
 proc-macro2 = "1.0"
+# tree-sitter = "0.20"          # 暂时禁用
+# tree-sitter-rust = "0.21"     # 暂时禁用
+
+# 并行处理
+rayon = "1.7"
+
+# 锁（用于缓存）
+parking_lot = "0.12"
 
 # 路径处理
 pathdiff = "0.2"
+glob = "0.3"
 
 # 输出格式化
 colored = "2.1"

@@ -2,7 +2,7 @@
 mod test_utils;
 
 use std::fs;
-use ci::checks::Checker;
+use ci::checker::Runner;
 use test_utils::{create_temp_dir, create_test_config};
 
 #[test]
@@ -57,8 +57,15 @@ mod tests {
 "#).unwrap();
     
     let config = create_test_config();
-    let mut checker = Checker::new(config);
-    let report = checker.check(temp_dir.path()).unwrap();
-    
+    let runner = Runner::new(config);
+    let report = runner.run(temp_dir.path()).unwrap();
+
+    // Debug: print all errors
+    if !report.is_success() {
+        for error in &report.errors {
+            println!("Error: {:?}", error);
+        }
+    }
+
     assert!(report.is_success(), "完整的有效结构应该通过所有检查");
 }

@@ -51,6 +51,37 @@ pub struct Camera3D {
     pub forward: Vec3,
 }
 
+/// 刚体组件 - 与 Rapier 物理引擎集成
+///
+/// 持有 Rapier 刚体的内部句柄，用于与物理世界同步
+#[derive(Component, Clone, Debug)]
+pub struct RigidBody {
+    /// Rapier 刚体句柄
+    pub handle: u32,
+}
+
+/// 碰撞体组件 - 与 Rapier 物理引擎集成
+///
+/// 持有 Rapier 碰撞体的内部句柄
+#[derive(Component, Clone, Debug)]
+pub struct Collider {
+    /// Rapier 碰撞体句柄
+    pub handle: u32,
+}
+
+/// 物理查询结果 - 用于射线检测等
+#[derive(Component, Clone, Debug)]
+pub struct PhysicsQuery;
+
 #[path = "Default_Camera2D.rs"]
 mod default_camera2d;
+
+#[path = "Default_Transform.rs"]
+mod default_transform;
+
+#[path = "Default_RigidBody.rs"]
+mod default_rigid_body;
+
+#[path = "Default_Collider.rs"]
+mod default_collider;
 
