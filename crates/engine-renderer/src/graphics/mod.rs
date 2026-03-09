@@ -7,6 +7,14 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use glam::Vec3;
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CameraUniform {
+    pub view_proj: [[f32; 4]; 4],
+    pub view_pos: [f32; 3],
+    pub _padding: f32,
+}
+
 // ============================================================================
 //  Mesh (网格) & Primitive (图元)
 // ============================================================================
@@ -87,6 +95,7 @@ pub struct MaterialData {
 pub struct GpuMaterial {
     pub bind_group: wgpu::BindGroup,
     pub data: MaterialData,
+    pub shader_name: String,
 }
 
 pub trait MaterialTrait {
@@ -144,7 +153,13 @@ pub struct MaterialConfig {
     pub name: String,
     pub shader: String,
     pub inputs: Option<Vec<MaterialInput>>,
+    #[serde(default)]
+    pub pipeline_state: PipelineState,
 }
+
+pub use pipeline_state::*;
+
+mod pipeline_state;
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type")]
@@ -260,6 +275,7 @@ pub trait PipelineGeneratorTrait {
         format: wgpu::TextureFormat,
         depth_format: Option<wgpu::TextureFormat>,
         bind_group_layouts: &[&wgpu::BindGroupLayout],
+        pipeline_state: &PipelineState,
     ) -> Result<GpuShader, String>;
 }
 

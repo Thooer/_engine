@@ -35,20 +35,32 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // 采样基础色 (使用全局采样器)
-    let base_color = textureSample(base_texture, sampler_linear, in.uv);
+    let base_color = vec4<f32>(1.0);//textureSample(base_texture, sampler_linear, in.uv);
+    let normal = normalize(in.world_normal);
+    let view_dir = normalize(camera.view_pos - in.world_position);
     
-    // 简单的光照 (硬编码光源方向)
-    let light_dir = normalize(vec3<f32>(1.0, 1.0, 1.0));
-    let diffuse = max(dot(normalize(in.world_normal), light_dir), 0.0);
+    var total_light = vec3<f32>(0.0);
+
+    // 环境光 (简单硬编码)
+    let ambient = vec3<f32>(0.05) * base_color.rgb;
+    total_light += ambient;
     
-    // 环境光
-    let ambient = 0.1;
+    // 遍历点光源
+    for (var i: u32 = 0u; i < lights.point_light_info.x; i++) {
+        let light = lights.point_lights[i];
+        total_light += calculate_point_light(
+            light,
+            normal,
+            view_dir,
+            in.world_position,
+            base_color.rgb,
+            32.0 // Shininess (Hardcoded for now)
+        );
+    }
     
-    // Apply material uniform (even if zero, just to use it)
-    // If we add it, it does nothing if zero.
+    // Apply material uniform
     let mod_color = material_uniform.color_mod.rgb; 
+    total_light += mod_color;
     
-    let final_color = base_color.rgb * (diffuse + ambient) + mod_color;
-    
-    return vec4<f32>(final_color, base_color.a);
+    return vec4<f32>(total_light, base_color.a);
 }

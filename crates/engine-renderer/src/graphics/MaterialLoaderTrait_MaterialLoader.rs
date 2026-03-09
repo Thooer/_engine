@@ -117,7 +117,10 @@ impl MaterialLoaderTrait for MaterialLoader {
             let inputs = config.inputs.as_deref().unwrap_or(&[]);
             let material_layout = Self::create_bind_group_layout(device, inputs);
 
-            if !resources.shaders.contains_key(&config.shader) {
+            // Generate a unique key for the shader based on path and pipeline state
+            let shader_key = format!("{}?{:?}", config.shader, config.pipeline_state);
+
+            if !resources.shaders.contains_key(&shader_key) {
                 // 使用 PipelineGenerator 创建 GpuShader (手动配置 Layout)
                 let gpu_shader = pipeline_generator.create_gpu_shader(
                     device,
@@ -125,10 +128,11 @@ impl MaterialLoaderTrait for MaterialLoader {
                     format,
                     depth_format,
                     &[&frame_layout, &pass_layout, &material_layout],
+                    &config.pipeline_state,
                 )?;
                 resources
                     .shaders
-                    .insert(config.shader.clone(), Arc::new(gpu_shader));
+                    .insert(shader_key.clone(), Arc::new(gpu_shader));
             }
 
             // B. 创建 BindGroup (Group 2)
@@ -170,7 +174,7 @@ impl MaterialLoaderTrait for MaterialLoader {
                     }
                     MaterialInput::Buffer { fields, binding } => {
                         let size = calculate_uniform_size(fields);
-                         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
                             label: Some(&format!("{} Custom Buffer", config.name)),
                             size,
                             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
@@ -200,6 +204,7 @@ impl MaterialLoaderTrait for MaterialLoader {
                 data: MaterialData {
                     inputs: config.inputs.clone().unwrap_or_default(),
                 },
+                shader_name: shader_key,
             };
 
             resources

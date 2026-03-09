@@ -5,10 +5,11 @@ use engine_renderer::renderer::{
 use engine_renderer::graphics::{
     ModelLoader, ModelLoaderTrait, MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait
 };
+use engine_renderer::uniforms::{*};
 // use engine_core::camera::camera3d_fly_wasd;
-// use engine_core::ecs::{Camera3D, Transform, World};
+use engine_core::ecs::{Camera3D, Transform, World};
 
-// use glam::{Mat4, Quat, Vec3};
+use glam::{Mat4, Quat, Vec3};
 
 // const MAX_FRAMES: u32 = 600;
 
@@ -59,8 +60,9 @@ impl App for SceneDemoApp {
                 println!("  Materials: {:?}", model.material_names);
                 println!("  Root Nodes: {}", model.root_nodes.len());
                 
-                // 将加载的模型添加到 renderer (这需要 MainRenderer 有相应的方法，暂时先打印)
-                // renderer.model_cache.insert(model.name.clone(), std::sync::Arc::new(model));
+                // Add to renderer
+                renderer.model_cache.insert(model.name.clone(), std::sync::Arc::new(model));
+                renderer.collect_render_objects();
             },
             Err(e) => {
                 eprintln!("Failed to load model '{}': {}", model_path, e);
@@ -71,8 +73,24 @@ impl App for SceneDemoApp {
     }
 
     fn on_render(&mut self, engine: &mut Engine) {
-        //self.draw(engine);
-        self.main_renderer.as_mut().unwrap().render(engine.ctx_mut()).unwrap();
+        self.frames += 1;
+        let theta = self.frames as f32 * 0.01;
+        let camera = Camera3D {
+            position: Vec3::new(theta.cos() * 5.0, 5.0, theta.sin() * 5.0),
+            forward: Vec3::new(-theta.cos(), -1.0, -theta.sin()).normalize(),
+        };
+
+        let renderer = self.main_renderer.as_mut().unwrap();
+
+        // Update Camera Uniform
+        if let Some(camera_uniform) = renderer.uniform_cache.get("Camera Uniform")
+            .and_then(|any| any.downcast_ref::<CameraGpuUniform>()) {
+            
+            camera_uniform.update(engine.ctx().queue(), &camera, engine.ctx().config());
+        }
+        
+        renderer.collect_render_objects();
+        renderer.render(engine.ctx_mut()).unwrap();
     }
 }
 
@@ -80,7 +98,7 @@ fn main() {
     RunApp::run_app(
         AppConfig {
             title: "Scene Demo",
-            max_frames: Some(240),
+            max_frames: Some(24000),
             fixed_dt_seconds: Some(1.0 / 60.0),
         },
         SceneDemoApp {

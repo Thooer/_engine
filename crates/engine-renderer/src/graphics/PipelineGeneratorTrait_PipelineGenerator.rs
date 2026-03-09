@@ -9,6 +9,7 @@ use crate::graphics::VertexTrait;
 use crate::graphics::Vertex;
 
 use crate::graphics::GpuShader;
+use crate::graphics::PipelineState;
 
 impl PipelineGeneratorTrait for PipelineGenerator {
     fn new(assets_dir: impl AsRef<Path>) -> Self {
@@ -74,7 +75,7 @@ impl PipelineGeneratorTrait for PipelineGenerator {
         // Let's assume for scan_and_generate we might need to find a way, but for now
         // we can pass an empty list and see if it works (it won't if shader uses groups).
         // OR we allow create_gpu_shader to take Option.
-        self.create_gpu_shader(device, shader_path, format, depth_format, &[])
+        self.create_gpu_shader(device, shader_path, format, depth_format, &[], &PipelineState::default())
             .map(|gpu_shader| gpu_shader.pipeline)
     }
 
@@ -106,6 +107,17 @@ impl PipelineGeneratorTrait for PipelineGenerator {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                     count: None,
                 },
+                // Light Uniform (Binding 3)
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         })
     }
@@ -117,6 +129,7 @@ impl PipelineGeneratorTrait for PipelineGenerator {
         format: wgpu::TextureFormat,
         depth_format: Option<wgpu::TextureFormat>,
         bind_group_layouts: &[&wgpu::BindGroupLayout],
+        pipeline_state: &PipelineState,
     ) -> Result<GpuShader, String> {
         // 1. 编译 ShaderModule
         let module = self.loader.create_shader_module(device, shader_path, Some(shader_path))?;
@@ -131,6 +144,27 @@ impl PipelineGeneratorTrait for PipelineGenerator {
         let use_layout = if bind_group_layouts.is_empty() { None } else { Some(&layout) };
 
         // 3. 配置 Pipeline Descriptor
+        let blend_state = match pipeline_state.blend_mode {
+            crate::graphics::BlendMode::Opaque => Some(wgpu::BlendState::REPLACE),
+            crate::graphics::BlendMode::AlphaBlend => Some(wgpu::BlendState::ALPHA_BLENDING),
+            crate::graphics::BlendMode::Add => Some(wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+            }),
+        };
+
+        let cull_mode: Option<wgpu::Face> = pipeline_state.cull_mode.into();
+        let depth_compare: wgpu::CompareFunction = pipeline_state.depth_compare.into();
+        let depth_write_enabled = pipeline_state.depth_write;
+
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some(shader_path),
             layout: use_layout, 
@@ -146,7 +180,7 @@ impl PipelineGeneratorTrait for PipelineGenerator {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: blend_state,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
@@ -154,15 +188,15 @@ impl PipelineGeneratorTrait for PipelineGenerator {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode,
                 unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
             },
             depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                 format,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_write_enabled,
+                depth_compare,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),

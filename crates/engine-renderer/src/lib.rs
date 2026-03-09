@@ -5,6 +5,10 @@
 /// 渲染模块
 pub mod renderer;
 
+/// 渲染 Pass 模块
+pub mod passes;
+pub mod uniforms;
+
 /// 材质模块
 pub mod materials;
 

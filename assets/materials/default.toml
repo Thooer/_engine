@@ -2,12 +2,20 @@
 name = "default"
 shader = "custom/basic_diffuse.wgsl"
 
+[materials.pipeline_state]
+blend_mode = "Opaque"
+depth_write = true
+cull_mode = "Back"
+
 [[materials.inputs]]
 type = "Texture"
 path = "assets/textures/kane.png"
+binding = 0
 
 [[materials.inputs]]
 type = "Buffer"
+binding = 1
 fields = [
     { name = "color_mod", type = "vec4" }
 ]
+

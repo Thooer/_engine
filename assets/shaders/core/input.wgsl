@@ -36,6 +36,26 @@ struct CameraUniform {
 // 绑定 2: 最近邻采样器 (Nearest filtering)
 @group(0) @binding(2) var sampler_nearest: sampler;
 
+// =========================================================
+// Lighting Structures
+// =========================================================
+
+struct PointLight {
+    position: vec3<f32>,
+    range: f32,
+    color: vec3<f32>,
+    intensity: f32,
+};
+
+struct LightUniform {
+    point_lights: array<PointLight, 16>,
+    // x: count, yzw: padding
+    point_light_info: vec4<u32>,
+};
+
+// 绑定 3: 光照信息
+@group(0) @binding(3) var<uniform> lights: LightUniform;
+
 // Group(3) - 实例数据
 struct InstanceInput {
     @location(5) model_matrix_0: vec4<f32>,

@@ -2,11 +2,13 @@
 //!
 //! 注意：本模块文件禁止出现特定关键字串，所以这里只放类型与 trait 声明。
 
-use engine_core::ecs::Transform;
+use engine_core::ecs::{Camera3D, Transform};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::any::Any;
 use crate::graphics::{GpuMaterial, GpuShader, GpuMesh, GpuModel, Texture, DirectLight, PointLight};
+use crate::passes::RenderPass;
 
 pub use self::simple_mesh2d_pass_draw::{draw_simple_mesh2d_pass, SimpleMesh2DPassConfig};
 pub use self::simple_mesh3d_pass_draw::{draw_simple_mesh3d_pass, SimpleMesh3DPassConfig};
@@ -159,28 +161,43 @@ pub trait SurfaceContextNew {
 pub struct DefaultSurfaceContextNew;
 
 pub struct MainRenderer {
-    // 渲染资源缓存
+    pub surface_size: SurfaceSize,
+    
+    // Resource caches
+    pub model_cache: HashMap<String, Arc<GpuModel>>,
+    pub mesh_cache: HashMap<String, Arc<GpuMesh>>,
     pub material_cache: HashMap<String, Arc<GpuMaterial>>,
     pub shader_cache: HashMap<String, Arc<GpuShader>>,
     pub texture_cache: HashMap<String, Arc<Texture>>,
-    pub mesh_cache: HashMap<String, Arc<GpuMesh>>,
-    pub model_cache: HashMap<String, Arc<GpuModel>>,
+    pub uniform_cache: HashMap<String, Arc<dyn Any + Send + Sync>>,
+    
+    // Render Targets
+    pub render_targets: HashMap<String, Arc<Texture>>,
 
-    // 离屏纹理
-    pub screen_texture: Arc<Texture>,
-    pub depth_texture: Arc<Texture>,
-
-    // 待渲染的物体
-    pub model_objects: Vec<(Arc<GpuModel>, Transform)>,
+    // Bind Groups
+    pub pass_bind_group: wgpu::BindGroup,
+    
+    // Lighting
     pub direct_lights: Vec<DirectLight>,
     pub point_lights: Vec<PointLight>,
+    pub model_objects: Vec<(Arc<GpuModel>, Transform)>,
+    
+    // Frame (Group 0)
+    pub frame_bind_group: wgpu::BindGroup,
+    pub frame_bind_group_layout: wgpu::BindGroupLayout,
+
+    // Pass (Group 1 - Empty for now)
+    pub pass_bind_group_layout: wgpu::BindGroupLayout,
+    
+    // Render Passes
+    // pub passes: Vec<Box<dyn RenderPass>>,
 }
 
 pub trait RendererTrait {
     fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C) -> Self;
     fn resize<C: SurfaceContextTrait + ?Sized>(&mut self, ctx: &C);
     fn collect_render_objects(&mut self);
-    fn render<C: SurfaceContextTrait + ?Sized>(&mut self, ctx: &mut C) -> Result<(), FrameStartError>;
+    fn render<C: SurfaceContextTrait>(&mut self, ctx: &mut C) -> Result<(), FrameStartError>;
 }
 
 #[path = "SurfaceContextTrait_SurfaceContext.rs"]
