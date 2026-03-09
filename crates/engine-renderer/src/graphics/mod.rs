@@ -351,12 +351,12 @@ pub trait DirectLightTrait {
     fn new(direction: Vec3, color: Vec3, intensity: f32) -> Self;
 }
 
+#[path = "DirectLightTrait_DirectLight.rs"]
+pub mod gpu_direct_light;
+
 pub trait PointLightTrait {
     fn new(position: Vec3, color: Vec3, intensity: f32, range: f32) -> Self;
 }
-
-#[path = "DirectLightTrait_DirectLight.rs"]
-pub mod gpu_direct_light;
 
 #[path = "PointLightTrait_PointLight.rs"]
 pub mod gpu_point_light;

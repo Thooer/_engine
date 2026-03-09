@@ -1,0 +1,23 @@
+[package]
+name = "engine-physics"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Team"]
+description = "ToyEngine 物理系统 - Rapier 封装"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# 核心依赖
+engine-core = { path = "../engine-core" }
+glam = { workspace = true }
+tracing = { workspace = true }
+
+# 物理引擎
+rapier3d = { workspace = true }
+rapier2d = { workspace = true }
+
+# 物理调试渲染（可选）
+# rapier3d-debug-renderer = { workspace = true }
+
+[dev-dependencies]
+# 用于测试

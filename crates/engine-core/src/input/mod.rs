@@ -46,6 +46,9 @@ pub trait InputStateExt {
     fn just_released(&self, key: KeyCode) -> bool;
 }
 
+#[path = "InputStateExt_InputState.rs"]
+mod inputstateext_inputstate;
+
 /// 从 `WindowEvent::KeyboardInput` 中提取 `KeyCode` 的辅助工具。
 pub struct KeyCodeExtractor;
 
@@ -55,9 +58,6 @@ pub trait KeyCodeExtractorTrait {
     /// 这里单独封装一层，方便后续适配 winit API 变更。
     fn extract_keycode_from_keyboard_event(event: &WindowEvent) -> Option<KeyCode>;
 }
-
-#[path = "InputStateExt_InputState.rs"]
-mod inputstateext_inputstate;
 
 #[path = "KeyCodeExtractorTrait_KeyCodeExtractor.rs"]
 mod keycode_extractor_trait_keycode_extractor;

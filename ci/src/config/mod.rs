@@ -1,3 +1,7 @@
+mod matcher;
+
+pub use matcher::PathMatcher;
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -17,6 +21,11 @@ pub struct Config {
 pub struct GlobalConfig {
     #[serde(default)]
     pub root: String,
+    /// crate 入口文件列表（如 lib.rs），CI 会从这些入口追踪模块树
+    /// 如果为空，则使用传统的目录扫描模式
+    #[serde(default)]
+    pub entries: Vec<String>,
+    /// 排除的路径模式（仅在传统模式下使用）
     #[serde(default)]
     pub exclude_patterns: Vec<String>,
 }
@@ -25,6 +34,7 @@ impl Default for GlobalConfig {
     fn default() -> Self {
         Self {
             root: String::new(),
+            entries: Vec::new(),
             exclude_patterns: vec![
                 "**/target/**".to_string(),
                 "**/.git/**".to_string(),
@@ -80,6 +90,9 @@ pub struct ModRsCheck {
     /// mod.rs / lib.rs 中禁止出现任何顶层函数（所有方法必须通过 trait 暴露）
     #[serde(default = "default_true")]
     pub forbid_free_functions: bool,
+    /// trait 定义后紧跟的 impl 模块声明，文件路径必须以 trait 名称开头
+    #[serde(default = "default_true")]
+    pub trait_impl_order: bool,
 }
 
 impl Default for ModRsCheck {
@@ -89,6 +102,7 @@ impl Default for ModRsCheck {
             forbid_impl: true,
             struct_must_be_public: true,
             forbid_free_functions: true,
+            trait_impl_order: true,
         }
     }
 }
@@ -236,43 +250,5 @@ impl Config {
         let content = std::fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;
         Ok(config)
-    }
-
-    pub fn is_path_excluded(&self, path: &PathBuf) -> bool {
-        let path_str = path.to_string_lossy();
-        for pattern in &self.global.exclude_patterns {
-            if self.matches_pattern(&path_str, pattern) {
-                return true;
-            }
-        }
-        false
-    }
-
-    fn matches_pattern(&self, path: &str, pattern: &str) -> bool {
-        // 简单的“包含子串”匹配（不是完整 glob）。
-        //
-        // 关键点：为了跨平台（尤其是 Windows 的 `\` 路径分隔符），先把路径统一成 `/` 再做匹配。
-        let norm_path = path.replace('\\', "/");
-        let norm_pattern = pattern.replace('\\', "/");
-
-        let norm_pattern = norm_pattern.replace("**/", "");
-        let norm_pattern = norm_pattern.replace("**", "");
-
-        // 如果 pattern 为空，就认为不匹配（避免误伤）
-        if norm_pattern.trim().is_empty() {
-            return false;
-        }
-
-        norm_path.contains(&norm_pattern)
-    }
-
-    pub fn is_whitelisted(&self, path: &PathBuf) -> bool {
-        let path_str = path.to_string_lossy();
-        for entry in &self.whitelist {
-            if path_str.contains(&entry.path) {
-                return true;
-            }
-        }
-        false
     }
 }

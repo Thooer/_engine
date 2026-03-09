@@ -2,7 +2,7 @@
 mod test_utils;
 
 use std::fs;
-use ci::checks::Checker;
+use ci::checker::Runner;
 use test_utils::{create_temp_dir, create_test_config};
 
 #[test]
@@ -30,8 +30,8 @@ impl MyTrait for u32 {
 "#).unwrap();
     
     let config = create_test_config();
-    let mut checker = Checker::new(config);
-    let report = checker.check(temp_dir.path()).unwrap();
+    let runner = Runner::new(config);
+    let report = runner.run(temp_dir.path()).unwrap();
     
     assert!(!report.is_success(), "包含多个 impl 块的文件应该失败");
     assert!(report.errors.iter().any(|e| e.message.contains("只能包含一个 impl 块")));
@@ -58,8 +58,8 @@ impl MyTrait for i32 {
 "#).unwrap();
     
     let config = create_test_config();
-    let mut checker = Checker::new(config);
-    let report = checker.check(temp_dir.path()).unwrap();
+    let runner = Runner::new(config);
+    let report = runner.run(temp_dir.path()).unwrap();
     
     assert!(!report.is_success(), "命名不匹配的 impl 文件应该失败");
     assert!(report.errors.iter().any(|e| e.message.contains("文件命名必须和 trait 对应")));
@@ -86,8 +86,8 @@ impl MyTrait for i32 {
 "#).unwrap();
     
     let config = create_test_config();
-    let mut checker = Checker::new(config);
-    let report = checker.check(temp_dir.path()).unwrap();
+    let runner = Runner::new(config);
+    let report = runner.run(temp_dir.path()).unwrap();
     
     assert!(report.is_success(), "正确命名的 impl 文件应该通过检查");
 }
@@ -113,8 +113,8 @@ impl MyTrait for i32 {
 "#).unwrap();
     
     let config = create_test_config();
-    let mut checker = Checker::new(config);
-    let report = checker.check(temp_dir.path()).unwrap();
+    let runner = Runner::new(config);
+    let report = runner.run(temp_dir.path()).unwrap();
     
     assert!(!report.is_success(), "包含 pub 关键字的 impl 文件应该失败");
     assert!(report.errors.iter().any(|e| e.message.contains("禁止使用 pub 关键字")));
@@ -141,8 +141,8 @@ impl MyTrait for f64 {}
 "#).unwrap();
     
     let config = create_test_config();
-    let mut checker = Checker::new(config);
-    let report = checker.check(temp_dir.path()).unwrap();
+    let runner = Runner::new(config);
+    let report = runner.run(temp_dir.path()).unwrap();
     
     // 多个空 impl 块且是同一个 trait，应该允许
     assert!(report.is_success(), "多个空 impl 块且是同一个 trait 应该允许");
@@ -167,8 +167,8 @@ include!("internal/some.rs");
 "#).unwrap();
 
     let config = create_test_config();
-    let mut checker = Checker::new(config);
-    let report = checker.check(temp_dir.path()).unwrap();
+    let runner = Runner::new(config);
+    let report = runner.run(temp_dir.path()).unwrap();
 
     assert!(!report.is_success(), "非实现文件使用 include! 应该失败");
     assert!(report.errors.iter().any(|e| e.message.contains("include! 只能放在实现文件中")));
@@ -196,8 +196,8 @@ impl MyTrait for i32 {
 "#).unwrap();
 
     let config = create_test_config();
-    let mut checker = Checker::new(config);
-    let report = checker.check(temp_dir.path()).unwrap();
+    let runner = Runner::new(config);
+    let report = runner.run(temp_dir.path()).unwrap();
 
     assert!(report.is_success(), "实现文件中使用 include! 应该允许");
 }

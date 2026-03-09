@@ -1,0 +1,79 @@
+# CI 配置文件
+# 基于模块树的检查（从 lib.rs 入口追踪模块树）
+
+# ============================================================================
+# 全局配置
+# ============================================================================
+[global]
+# 工作空间根目录（相对于配置文件）
+root = ""
+
+# crate 入口文件列表
+# CI 会从这些入口文件追踪模块树，只检查模块树内的文件
+# 不在模块树中的文件（如 target/、examples/、scripts/ 等）自动忽略
+entries = [
+    "crates/engine-core/src/lib.rs",
+    "crates/engine-renderer/src/lib.rs",
+    "crates/engine-app/src/lib.rs",
+    "crates/engine-physics/src/lib.rs"
+]
+
+# ============================================================================
+# 检查规则配置
+# ============================================================================
+[checks]
+# 是否启用所有检查
+enabled = true
+
+# mod.rs / lib.rs 检查
+[checks.mod_rs]
+enabled = true
+forbid_impl = true
+struct_must_be_public = true
+forbid_free_functions = true
+trait_impl_order = true
+
+# impl 文件检查
+[checks.impl_file]
+enabled = true
+single_impl_only = true
+naming_must_match_trait = true
+forbid_pub = true
+forbid_inherent_impl = true
+
+# internal/ 目录检查
+[checks.internal]
+enabled = true
+forbid_mod_rs = true
+require_brace_wrap = true
+only_function_body = true
+
+# tests/ 目录检查
+[checks.tests]
+enabled = true
+forbid_mod_rs = true
+require_mod_declaration_in_parent = true
+test_file_must_match_trait = true
+
+# 命名检查
+[checks.naming]
+enabled = true
+forbid_impl_suffix = true
+forbid_tests_suffix = true
+
+# ============================================================================
+# 白名单配置（豁免规则）
+# ============================================================================
+
+# 注意：使用 entries 模式后，不在模块树中的目录自动忽略
+# 白名单仅用于模块树内的特殊豁免
+
+# ============================================================================
+# 输出配置
+# ============================================================================
+
+[output]
+format = "human"
+color = true
+verbose = false
+progress = true

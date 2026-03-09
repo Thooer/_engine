@@ -25,13 +25,14 @@ members = [
     "crates/engine-core",
     "crates/engine-renderer",
     "crates/engine-app",
+    "crates/engine-physics",
 ]
 # 未来可以添加更多子 crate
 
 [workspace.dependencies]
 # 核心依赖
 bevy_ecs = "0.18"
-glam = "0.27"
+glam = "0.30"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
@@ -45,8 +46,8 @@ wgpu = "28"
 naga = "0.20"
 
 # 物理
-rapier3d = "0.32"
-rapier2d = "0.32"
+rapier3d = { version = "0.32", features = ["simd-stable"] }
+rapier2d = { version = "0.32", features = ["simd-stable"] }
 
 # 音频
 kira = "0.12"

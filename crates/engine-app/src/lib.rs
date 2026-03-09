@@ -39,6 +39,9 @@ pub trait EngineTrait {
     fn request_exit(&mut self);
 }
 
+#[path = "EngineTrait_Engine.rs"]
+mod engine_trait_engine;
+
 pub trait App {
     fn on_start(&mut self, _engine: &mut Engine) {}
     fn on_window_event(&mut self, _engine: &mut Engine, _event: &WindowEvent) {}
@@ -59,6 +62,9 @@ pub trait AppRunnerTrait<A: App> {
     fn dt_seconds(&mut self) -> f32;
 }
 
+#[path = "AppRunnerTrait_AppRunner.rs"]
+mod app_runner_trait_app_runner;
+
 pub struct RunApp;
 
 pub trait RunAppTrait {
@@ -67,12 +73,6 @@ pub trait RunAppTrait {
 
 #[path = "Default_AppConfig.rs"]
 mod default_app_config;
-
-#[path = "EngineTrait_Engine.rs"]
-mod engine_trait_engine;
-
-#[path = "AppRunnerTrait_AppRunner.rs"]
-mod app_runner_trait_app_runner;
 
 #[path = "ApplicationHandler_AppRunner.rs"]
 mod application_handler_app_runner;

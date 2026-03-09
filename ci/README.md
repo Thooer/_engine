@@ -1,71 +1,188 @@
-## 这是什么
-这是一个 **Rust 模块结构检查工具**（`ci/` 目录是一个独立 crate，二进制名 `ci`）。
+# CI - Rust 模块结构检查工具
 
-目标是让一个模块的“对外形状”集中在 `mod.rs`，而实现细节被拆到同级的 impl 文件、以及可选的 `internal/` 与 `tests/` 目录里。
+`ci/` 是一个独立的 Rust crate，用于强制执行 Rust 模块的结构规范。
 
-## 规则（速记版）
-- **`mod.rs`**：禁止出现任何形式的 `impl`；需要对外 `pub` 的东西集中写在 `mod.rs`。
-- **同级非 `mod.rs` 的 `.rs` 文件（impl 文件）**：
-  - 必须 **有且只有一个** `impl` 块（特殊：同一 trait 的多个空 impl 可共存）。
-  - 文件名必须和这个 `impl` 对应（工具会按 `TraitName_TypeName.rs` 推导期望名）。
-  - 禁止出现 `pub`（对外 API 放回 `mod.rs`）。
-- **`internal/` 目录**：禁止 `mod.rs`；每个 `.rs` 必须用 `{}` 包裹；只允许“函数体片段”（不能出现 `fn ...` 签名）。
-- **`tests/` 目录**：禁止 `mod.rs`；必须在父目录 `mod.rs` 里声明 `#[cfg(test)] mod tests;` 且该声明要紧跟某个 trait 后；测试文件名必须与 trait 同名。
-- **命名禁用**：禁止 `*impl.rs`、`*_impl.rs`、`*tests.rs`、`*test.rs` 这类后缀命名（tests 目录除外）。
+## 设计目标
 
-## 怎么用（本地运行）
-建议在 **仓库根目录** 运行：
+让一个模块的"对外形状"集中在 `mod.rs`，实现细节拆到：
+- 同级 impl 文件
+- `internal/` 目录（内部实现细节）
+- `tests/` 目录（可选）
+
+## 架构
+
+```
+ci/
+├── src/
+│   ├── main.rs              # CLI 入口
+│   ├── lib.rs               # 模块导出
+│   ├── config/              # 配置加载与路径匹配
+│   │   └── matcher.rs       # 路径匹配规则
+│   ├── parser/              # 源码解析
+│   │   ├── trait.rs         # Parser / ParsedSource trait
+│   │   ├── ast.rs           # AST 节点定义
+│   │   ├── syn_parser.rs    # syn 实现（主要）
+│   │   └── tree_sitter_parser.rs # tree-sitter 实现（备用）
+│   ├── checker/             # 检查器
+│   │   ├── walker.rs        # 目录遍历
+│   │   ├── runner.rs        # 规则执行（并行 + 缓存）
+│   │   ├── mod.rs           # checker 模块导出
+│   │   └── rules/           # 具体规则
+│   │       ├── trait.rs     # Rule trait + RuleContext
+│   │       ├── mod_rs.rs    # mod.rs 规则
+│   │       ├── impl_file.rs # impl 文件规则
+│   │       ├── internal.rs  # internal/ 规则
+│   │       ├── tests_dir.rs # tests/ 规则
+│   │       └── naming.rs    # 命名规则
+│   ├── report/              # 报告输出
+│   │   ├── types.rs         # 报告类型定义
+│   │   ├── formatter.rs     # 格式化输出
+│   │   └── mod.rs          # report 模块导出
+│   └── fixer/              # 自动修复
+│       └── mod.rs          # Fixer 实现
+├── Cargo.toml
+└── ci.toml                # 配置文件
+```
+
+### 核心组件
+
+| 组件 | 说明 |
+|------|------|
+| **Parser** | 抽象解析接口，当前使用 `syn` 库 |
+| **Rule** | 检查规则 trait，每个规则独立实现 |
+| **Walker** | 遍历目录，收集模块结构 |
+| **Runner** | 协调解析、缓存、并行执行 |
+| **Fixer** | 自动修复功能 |
+
+## 规则详解
+
+### mod.rs 规则
+
+| 规则 | 说明 | 配置键 |
+|------|------|--------|
+| 禁止 `impl` | 任何形式的 impl 块都不允许 | `forbid_impl` |
+| 禁止 `include!` 宏 | include! 只能放在实现文件中 | 自动检测 |
+| 禁止私有 struct | struct 必须 pub | `struct_must_be_public` |
+| 禁止顶层 fn | 所有方法必须通过 trait 暴露 | `forbid_free_functions` |
+
+### impl 文件规则
+
+位置：同级的 `.rs` 文件
+
+| 规则 | 说明 | 配置键 |
+|------|------|--------|
+| 必须有且只有一个 impl 块 | 同一 trait 的空 impl 除外 | `single_impl_only` |
+| 文件命名必须对应 | `TraitName_TypeName.rs` 格式 | `naming_must_match_trait` |
+| 禁止 `pub` 关键字 | impl 文件内部不需要 pub | `forbid_pub` |
+| 禁止固有实现 | 必须通过 trait 暴露方法 | `forbid_inherent_impl` |
+
+### internal/ 目录规则
+
+位置：`模块名/internal/` 目录
+
+| 规则 | 说明 | 配置键 |
+|------|------|--------|
+| 禁止 `mod.rs` | 不能有入口文件 | `forbid_mod_rs` |
+| 必须用 `{}` 包裹 | 每个 .rs 文件必须是大括号包裹 | `require_brace_wrap` |
+| 只允许函数体 | 禁止方法签名，只能有函数体 | `only_function_body` |
+
+### tests/ 目录规则
+
+位置：`模块名/tests/` 目录
+
+| 规则 | 说明 | 配置键 |
+|------|------|--------|
+| 禁止 `mod.rs` | 不能有入口文件 | `forbid_mod_rs` |
+| 父 mod.rs 声明 | 必须在父 mod.rs 中声明 `mod tests;` | `require_mod_declaration_in_parent` |
+| 声明位置 | 模块声明必须紧跟 trait 后 | 自动检测 |
+| 文件名匹配 | 测试文件名必须与 trait 同名 | `test_file_must_match_trait` |
+
+## 命令
 
 ```bash
+# 检查当前目录
 cargo run --manifest-path ci/Cargo.toml -- check
-```
 
-## 检查逻辑（工具怎么扫）
-- 从你指定的 `--root` 开始，遇到目录就看是否存在 `mod.rs`，然后做 **mod.rs / 同级 impl 文件** 检查。
-- 对子目录递归；其中 `internal/`、`tests/` 走专门规则，其他目录继续当作普通模块目录处理。
-
-常用参数：
-- **指定配置文件**：
-
-```bash
+# 指定配置文件
 cargo run --manifest-path ci/Cargo.toml -- check -c ci/ci.toml
-```
 
-- **指定检查根目录**（只检查某个子目录/模块）：
+# 指定检查根目录
+cargo run --manifest-path ci/Cargo.toml -- check -r crates/mycrate/src
 
-```bash
-cargo run --manifest-path ci/Cargo.toml -- check -r crates/toyengine-core/src
-```
+# 自动修复问题
+cargo run --manifest-path ci/Cargo.toml -- check --fix
 
-- **只验证配置文件是否能解析**：
-
-```bash
+# 验证配置文件
 cargo run --manifest-path ci/Cargo.toml -- validate -c ci/ci.toml
 ```
 
-## 怎么看输出 / 怎么定位
-- **通过**：输出 `✓ 所有检查通过`
-- **失败**：输出 `✗ 发现 N 个错误`，并逐条打印：
-  - `ERROR: <path>:<line>`（如果能定位到行，会带 `:<line>`）
-  - 下一行是具体原因（例如 “mod.rs 禁止包含任何形式的 impl”、“impl 文件禁止使用 pub 关键字” 等）
+## 配置 (ci.toml)
 
-处理方式通常是：按报错路径打开文件 → 跳到行号 → 按下面“常见修复”改结构/命名。
+```toml
+[global]
+root = ""
+exclude_patterns = ["**/target/**", "**/.git/**"]
 
-## 常见报错 & 修复对照
-- **`mod.rs 禁止包含任何形式的 impl`**
-  - 把 `impl` 块移到同级独立文件（见下条“impl 文件”命名规则）。
-- **`impl 文件只能包含一个 impl 块 ... 期望拆分成 ...`**
-  - 一个 `.rs` 里有多个 impl：拆分成多个文件，每个文件保留一个 impl。
-- **`文件命名必须和 trait 对应：期望 X，实际 Y`**
-  - 将文件改名为工具提示的期望名（通常是 `TraitName_TypeName.rs`）。
-- **`impl 文件禁止使用 pub 关键字`**
-  - 把 `pub` 改为私有或 `pub(crate)`；需要对外暴露的 API 在 `mod.rs` 提供 `pub fn/struct/...` 转发。
-- **`internal/ 目录中的文件必须用大括号 {} 包裹` / `只能包含函数体`**
-  - `internal/*.rs` 文件内容必须形如 `{ ... }`，且里面不要写 `fn xxx(...) {}` 这种签名，只保留函数体片段。
-- **`tests/ 目录必须在 mod.rs 中声明模块` / `tests/ 模块声明必须跟在某个 trait 后面`**
-  - 在父目录 `mod.rs` 的某个 trait 定义后面紧跟：`#[cfg(test)] mod tests;`
+[checks.mod_rs]
+enabled = true
+forbid_impl = true
+struct_must_be_public = true
+forbid_free_functions = true
 
-## 配置（`ci/ci.toml`）
-- **`[global].exclude_patterns`**：排除目录（默认已经排除了 `target/`、`.git/`、`node_modules/`、`thirdparty/` 等）。
-  - 注意：当前匹配实现偏“包含子串”，写 pattern 时尽量用稳定的路径片段。
-- **`[[whitelist]]`**：白名单路径（当前实现：命中后直接跳过该路径下的所有检查）。
+[checks.impl_file]
+enabled = true
+single_impl_only = true
+naming_must_match_trait = true
+forbid_pub = true
+forbid_inherent_impl = true
+
+[checks.internal]
+enabled = true
+forbid_mod_rs = true
+require_brace_wrap = true
+only_function_body = true
+
+[checks.tests]
+enabled = true
+forbid_mod_rs = true
+require_mod_declaration_in_parent = true
+test_file_must_match_trait = true
+
+[checks.naming]
+enabled = true
+forbid_impl_suffix = true
+forbid_tests_suffix = true
+
+[[whitelist]]
+path = "path/to/exclude"
+
+[output]
+format = "human"
+color = true
+verbose = false
+```
+
+## 自动修复 (--fix)
+
+CI 支持以下自动修复：
+
+| 修复类型 | 触发条件 |
+|----------|----------|
+| `RenameFile` | 文件命名与 trait 不匹配 → 重命名 |
+| `SplitImplFile` | impl 文件包含多个非空 impl 块 → 拆分成多个文件 |
+| `MoveImplToFile` | mod.rs 包含 impl 块 → 移动到单独文件 |
+| `RemovePub` | impl 文件包含 pub 关键字 → 移除 pub |
+| `AddModuleDeclaration` | tests/ 目录未在 mod.rs 声明 → 添加模块声明 |
+
+## 模块导出 (lib.rs)
+
+```rust
+pub mod config;
+pub mod parser;
+pub mod checker;
+pub mod report;
+pub mod fixer;
+
+pub use parser::{Parser, ParsedSource, SynParser, ImplBlock, TraitBlock, ModuleBlock};
+pub use fixer::{Fixer, Fix, FixResult};
+```

@@ -25,12 +25,18 @@ pub trait SurfaceSizeHelperTrait {
     fn surface_size_is_zero(size: SurfaceSize) -> bool;
 }
 
+#[path = "SurfaceSizeHelperTrait_SurfaceSizeHelper.rs"]
+mod surface_size_helper_trait_surface_size_helper;
+
 pub struct WgpuConfigHelper;
 
 pub trait WgpuConfigHelperTrait {
     fn wgpu_debug_on() -> bool;
     fn backends_from_env() -> Option<Vec<wgpu::Backends>>;
 }
+
+#[path = "WgpuConfigHelperTrait_WgpuConfigHelper.rs"]
+mod wgpu_config_helper_trait_wgpu_config_helper;
 
 #[derive(Debug)]
 pub struct SurfaceContext<'w> {
@@ -68,6 +74,9 @@ pub trait SurfaceContextTrait {
     fn frame_show(&self, frame: wgpu::SurfaceTexture);
 }
 
+#[path = "SurfaceContextTrait_SurfaceContext.rs"]
+mod surface_context_trait_surface_context;
+
 /// 简单 2D 网格渲染管线 trait：固定使用位置 vec2，片元输出固定颜色。
 ///
 /// 设计目标：
@@ -95,6 +104,10 @@ pub trait SimpleMeshPipeline2D {
         index_count: u32,
     );
 }
+
+/// 简单 2D 网格渲染管线实现
+#[path = "SimpleMeshPipeline2D_SimpleMeshPipeline2DPipeline.rs"]
+mod simple_mesh_pipeline2d_simple_mesh_pipeline2d_pipeline;
 
 /// 一个最小实现：用于 phase4 示例等场景的简单 2D 网格管线。
 ///
@@ -136,6 +149,10 @@ pub trait InstanceColorMeshPipeline2D {
     );
 }
 
+/// 实例化二维网格渲染管线实现
+#[path = "InstanceColorMeshPipeline2D_InstanceColorMeshPipeline2DPipeline.rs"]
+mod instance_color_mesh_pipeline2d_instance_color_mesh_pipeline2d_pipeline;
+
 /// 一个最小实现：用于 ECS 场景示例的实例化网格管线。
 #[derive(Debug)]
 pub struct InstanceColorMeshPipeline2DPipeline {
@@ -157,6 +174,9 @@ pub trait SurfaceContextNew {
 }
 
 /// 默认的 `SurfaceContext` 创建实现，封装“当前 wgpu 策略”。
+#[path = "SurfaceContextNew_DefaultSurfaceContextNew.rs"]
+mod surface_context_new_default_surface_context_new;
+
 #[derive(Debug, Default)]
 pub struct DefaultSurfaceContextNew;
 
@@ -199,36 +219,6 @@ pub trait RendererTrait {
     fn collect_render_objects(&mut self);
     fn render<C: SurfaceContextTrait>(&mut self, ctx: &mut C) -> Result<(), FrameStartError>;
 }
-
-#[path = "SurfaceContextTrait_SurfaceContext.rs"]
-mod surface_context_trait_surface_context;
-
-#[path = "SurfaceSizeHelperTrait_SurfaceSizeHelper.rs"]
-mod surface_size_helper_trait_surface_size_helper;
-
-#[path = "WgpuConfigHelperTrait_WgpuConfigHelper.rs"]
-mod wgpu_config_helper_trait_wgpu_config_helper;
-
-#[path = "SimpleMeshPipeline2D_SimpleMeshPipeline2DPipeline.rs"]
-mod simple_mesh_pipeline2d_simple_mesh_pipeline2d_pipeline;
-
-#[path = "InstanceColorMeshPipeline2D_InstanceColorMeshPipeline2DPipeline.rs"]
-mod instance_color_mesh_pipeline2d_instance_color_mesh_pipeline2d_pipeline;
-
-#[path = "SurfaceContextNew_DefaultSurfaceContextNew.rs"]
-mod surface_context_new_default_surface_context_new;
-
-#[path = "SimpleMesh2DPass_draw.rs"]
-mod simple_mesh2d_pass_draw;
-
-#[path = "SimpleMesh3DPass_draw.rs"]
-mod simple_mesh3d_pass_draw;
-
-#[path = "SimpleMesh3D_CubeMesh.rs"]
-mod simple_mesh3d_cube_mesh;
-
-#[path = "RendererTrait_MainRenderer.rs"]
-mod renderer_trait_main_renderer;
 
 pub use self::simple_mesh3d_cube_mesh::{
     create_colored_cube_vertices_indices, create_simple_mesh3d_resources, SimpleMesh3DResources,

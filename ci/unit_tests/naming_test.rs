@@ -2,7 +2,7 @@
 mod test_utils;
 
 use std::fs;
-use ci::checks::Checker;
+use ci::checker::Runner;
 use test_utils::{create_temp_dir, create_test_config};
 
 #[test]
@@ -26,8 +26,8 @@ impl MyTrait for i32 {
 "#).unwrap();
     
     let config = create_test_config();
-    let mut checker = Checker::new(config);
-    let report = checker.check(temp_dir.path()).unwrap();
+    let runner = Runner::new(config);
+    let report = runner.run(temp_dir.path()).unwrap();
     
     assert!(!report.is_success(), "以 _impl 结尾的文件应该失败");
     assert!(report.errors.iter().any(|e| e.message.contains("禁止使用 *impl.rs 命名")));
