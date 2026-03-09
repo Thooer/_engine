@@ -10,8 +10,8 @@ use std::any::Any;
 use crate::graphics::{GpuMaterial, GpuShader, GpuMesh, GpuModel, Texture, DirectLight, PointLight};
 use crate::passes::RenderPass;
 
-pub use self::simple_mesh2d_pass_draw::{draw_simple_mesh2d_pass, SimpleMesh2DPassConfig};
-pub use self::simple_mesh3d_pass_draw::{draw_simple_mesh3d_pass, SimpleMesh3DPassConfig};
+// pub use self::simple_mesh2d_pass_draw::{draw_simple_mesh2d_pass, SimpleMesh2DPassConfig};
+// pub use self::simple_mesh3d_pass_draw::{draw_simple_mesh3d_pass, SimpleMesh3DPassConfig};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct SurfaceSize {
@@ -220,7 +220,10 @@ pub trait RendererTrait {
     fn render<C: SurfaceContextTrait>(&mut self, ctx: &mut C) -> Result<(), FrameStartError>;
 }
 
-pub use self::simple_mesh3d_cube_mesh::{
-    create_colored_cube_vertices_indices, create_simple_mesh3d_resources, SimpleMesh3DResources,
-    Vertex3D,
-};
+#[path = "RendererTrait_MainRenderer.rs"]
+pub mod renderer_trait_main_renderer;
+
+// pub use self::simple_mesh3d_cube_mesh::{
+//     create_colored_cube_vertices_indices, create_simple_mesh3d_resources, SimpleMesh3DResources,
+//     Vertex3D,
+// };
