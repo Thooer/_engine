@@ -31,7 +31,7 @@ pub struct Engine {
 }
 
 pub trait EngineTrait {
-    fn window(&self) -> &Window;
+    fn window(&self) -> &'static Window;
     fn ctx(&self) -> &SurfaceContext<'static>;
     fn ctx_mut(&mut self) -> &mut SurfaceContext<'static>;
     fn input(&self) -> &InputState;

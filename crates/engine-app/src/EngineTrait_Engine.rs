@@ -4,7 +4,7 @@ use engine_renderer::renderer::SurfaceContext;
 use winit::window::Window;
 
 impl EngineTrait for Engine {
-    fn window(&self) -> &Window {
+    fn window(&self) -> &'static Window {
         self.window.expect("Engine window not initialized")
     }
 

@@ -4,6 +4,8 @@
 
 use engine_core::ecs::{Camera3D, Transform};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use winit::window::Window;
+use winit::event::WindowEvent;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::any::Any;
@@ -197,10 +199,11 @@ pub struct MainRenderer {
     // Bind Groups
     pub pass_bind_group: wgpu::BindGroup,
     
-    // Lighting
+    // Render Objects
     pub direct_lights: Vec<DirectLight>,
     pub point_lights: Vec<PointLight>,
     pub model_objects: Vec<(Arc<GpuModel>, Transform)>,
+    pub ui_objects: Vec<Box<dyn crate::ui::UiComponent>>,
     
     // Frame (Group 0)
     pub frame_bind_group: wgpu::BindGroup,
@@ -208,14 +211,18 @@ pub struct MainRenderer {
 
     // Pass (Group 1 - Empty for now)
     pub pass_bind_group_layout: wgpu::BindGroupLayout,
+
+    pub window: &'static Window,
+    pub gui: crate::ui::GuiSystem,
     
     // Render Passes
     // pub passes: Vec<Box<dyn RenderPass>>,
 }
 
 pub trait RendererTrait {
-    fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C) -> Self;
+    fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C, window: &'static Window) -> Self;
     fn resize<C: SurfaceContextTrait + ?Sized>(&mut self, ctx: &C);
+    fn handle_event(&mut self, window: &Window, event: &WindowEvent) -> bool { false }
     fn collect_render_objects(&mut self);
     fn render<C: SurfaceContextTrait>(&mut self, ctx: &mut C) -> Result<(), FrameStartError>;
 }

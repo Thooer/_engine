@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use winit::window::Window;
+use winit::event::WindowEvent;
+use egui;
 
 use super::{FrameStartError, MainRenderer, RendererTrait, SurfaceContextTrait};
+use crate::ui::{GuiSystem, GuiSystemTrait, UiComponent, EngineStatsUi, EngineStatsUiTrait};
 use crate::graphics::{
-    PipelineGeneratorTrait,
     Texture, TextureLoader,
     PointLight,
 };
@@ -11,7 +14,7 @@ use crate::passes::{MeshForwardPass, RenderPass};
 use crate::uniforms::{CameraGpuUniform, CameraGpuUniformTrait, LightGpuUniform, LightGpuUniformTrait};
 
 impl RendererTrait for MainRenderer {
-    fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C) -> Self {
+    fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C, window: &'static Window) -> Self {
         let device = ctx.device();
         let config = ctx.config();
 
@@ -53,8 +56,8 @@ impl RendererTrait for MainRenderer {
             label: Some("Linear Sampler"),
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::MipmapFilterMode::Linear,
-            address_mode_u: wgpu::AddressMode::Repeat,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            lod_min_clamp: 0.0,address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
             ..Default::default()
         });
@@ -63,8 +66,8 @@ impl RendererTrait for MainRenderer {
             label: Some("Nearest Sampler"),
             mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
-            address_mode_u: wgpu::AddressMode::Repeat,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            lod_min_clamp: 0.0,address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
             ..Default::default()
         });
@@ -151,6 +154,15 @@ impl RendererTrait for MainRenderer {
         // Initialize Passes
         // let passes: Vec<Box<dyn RenderPass>> = vec![Box::new(MeshForwardPass)];
 
+        // Initialize GUI
+        let mut gui = GuiSystem::new(
+            device,
+            config.format,
+            None,
+            1,
+            window,
+        );
+
         Self {
             surface_size: ctx.size(),
             material_cache: HashMap::new(),
@@ -163,10 +175,13 @@ impl RendererTrait for MainRenderer {
             model_objects: Vec::new(),
             direct_lights: Vec::new(),
             point_lights: Vec::new(),
+            ui_objects: Vec::new(),
             frame_bind_group,
             frame_bind_group_layout,
             pass_bind_group,
             pass_bind_group_layout,
+            window,
+            gui,
             // passes,
         }
     }
@@ -192,8 +207,14 @@ impl RendererTrait for MainRenderer {
         self.render_targets.insert("Depth Texture".to_string(), depth_texture);
     }
 
+    fn handle_event(&mut self, window: &Window, event: &WindowEvent) -> bool {
+        self.gui.handle_event(window, event)
+    }
+
     fn collect_render_objects(&mut self) {
         self.model_objects.clear();
+        self.ui_objects.clear();
+
         // Hardcode adding monkey at origin
         if let Some(model) = self.model_cache.get("monkey") {
             self.model_objects.push((
@@ -205,6 +226,10 @@ impl RendererTrait for MainRenderer {
                 },
             ));
         }
+
+        // Hardcode adding UI components
+        // In a real ECS system, this would query UI entities
+        self.ui_objects.push(Box::new(EngineStatsUi::new()));
 
         // Hardcode adding a point light
         self.point_lights.clear();
@@ -237,11 +262,40 @@ impl RendererTrait for MainRenderer {
             });
         
         // 顺序执行渲染管线
+        // 背景Pass
         // BackgroundPass.render(self, ctx as &mut dyn SurfaceContextTrait, &mut encoder, &view)?;
+        // 网格物体Pass
         MeshForwardPass.render(self, ctx as &mut dyn SurfaceContextTrait, &mut encoder, &view)?;
+        // EGUI Pass
+        render_ui(self, ctx.device(), ctx.queue(), &mut encoder, &view);
 
         ctx.queue().submit(std::iter::once(encoder.finish()));
         ctx.frame_show(output);
         Ok(())
     }
+}
+
+fn render_ui(
+    renderer: &mut MainRenderer,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    encoder: &mut wgpu::CommandEncoder,
+    view: &wgpu::TextureView,
+) {
+    renderer.gui.begin_frame(renderer.window);
+
+    let screen_descriptor = egui_wgpu::ScreenDescriptor {
+        size_in_pixels: [renderer.surface_size.width, renderer.surface_size.height],
+        pixels_per_point: renderer.window.scale_factor() as f32,
+    };
+
+    renderer.gui.end_frame(
+        device,
+        queue,
+        encoder,
+        view,
+        screen_descriptor,
+        renderer.window,
+        &mut renderer.ui_objects,
+    );
 }

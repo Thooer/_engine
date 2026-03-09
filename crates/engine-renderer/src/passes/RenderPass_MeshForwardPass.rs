@@ -34,7 +34,6 @@ impl RenderPass for MeshForwardPass {
                 }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
-                multiview_mask: None,
             });
 
             // Set Group 0,1 (Frame, Pass)

@@ -1,4 +1,5 @@
 use engine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
+use winit::event::WindowEvent;
 use engine_renderer::renderer::{
     MainRenderer, RendererTrait, SurfaceContextTrait,
 };
@@ -21,7 +22,7 @@ struct SceneDemoApp {
 
 impl App for SceneDemoApp {
     fn on_start(&mut self, engine: &mut Engine) {
-        let mut renderer = MainRenderer::new(engine.ctx());
+        let mut renderer = MainRenderer::new(engine.ctx(), engine.window());
         
         // 测试 Material System
         let device = engine.ctx().device();
@@ -70,6 +71,12 @@ impl App for SceneDemoApp {
         }
         
         self.main_renderer = Some(renderer);
+    }
+
+    fn on_window_event(&mut self, engine: &mut Engine, event: &WindowEvent) {
+        if let Some(renderer) = self.main_renderer.as_mut() {
+            renderer.handle_event(engine.window(), event);
+        }
     }
 
     fn on_render(&mut self, engine: &mut Engine) {

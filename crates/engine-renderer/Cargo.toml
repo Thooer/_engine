@@ -12,6 +12,7 @@ engine-core = { path = "../engine-core" }
 glam = { workspace = true }
 tracing = { workspace = true }
 bytemuck = { workspace = true }
+winit = { workspace = true }
 
 # 图形
 wgpu = { workspace = true }

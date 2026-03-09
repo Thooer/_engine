@@ -45,7 +45,7 @@ impl SimpleMeshPipeline2D for SimpleMeshPipeline2DPipeline {
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("simple_mesh_2d layout"),
             bind_group_layouts: &[],
-            immediate_size: 0,
+            push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -70,7 +70,7 @@ impl SimpleMeshPipeline2D for SimpleMeshPipeline2DPipeline {
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
+            multiview: None,
             cache: None,
         });
 

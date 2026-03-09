@@ -138,7 +138,7 @@ impl PipelineGeneratorTrait for PipelineGenerator {
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some(&format!("{} Layout", shader_path)),
             bind_group_layouts,
-            immediate_size: 0,
+            push_constant_ranges: &[],
         });
 
         let use_layout = if bind_group_layouts.is_empty() { None } else { Some(&layout) };
@@ -168,6 +168,7 @@ impl PipelineGeneratorTrait for PipelineGenerator {
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some(shader_path),
             layout: use_layout, 
+            multiview: None,
             vertex: wgpu::VertexState {
                 module: &module,
                 entry_point: Some("vs_main"),
@@ -205,7 +206,6 @@ impl PipelineGeneratorTrait for PipelineGenerator {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            multiview_mask: None,
             cache: None,
         });
 

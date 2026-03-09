@@ -42,8 +42,8 @@ raw-window-handle = "0.6"
 gilrs = "0.11"
 
 # 图形
-wgpu = "28"
-naga = "0.20"
+wgpu = "27"
+naga = "27"
 
 # 物理
 rapier3d = { version = "0.32", features = ["simd-stable"] }
