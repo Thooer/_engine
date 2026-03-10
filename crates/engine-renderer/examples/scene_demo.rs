@@ -35,7 +35,7 @@ impl App for SceneDemoApp {
         match MaterialLoader::load_materials(
             device, 
             queue, 
-            "assets/materials/default.toml", 
+            "assets/materials", // Use directory path
             &pipeline_generator,
             format,
             Some(wgpu::TextureFormat::Depth32Float) // 假设深度格式

@@ -6,6 +6,7 @@ shader = "custom/basic_diffuse.wgsl"
 blend_mode = "Opaque"
 depth_write = true
 cull_mode = "Back"
+topology = "TriangleList"
 
 [[materials.inputs]]
 type = "Texture"
@@ -18,4 +19,3 @@ binding = 1
 fields = [
     { name = "color_mod", type = "vec4" }
 ]
-

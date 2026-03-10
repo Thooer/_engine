@@ -39,10 +39,31 @@ impl MaterialLoaderTrait for MaterialLoader {
         depth_format: Option<wgpu::TextureFormat>,
     ) -> Result<LoadedMaterialResources, String> {
         let path = path.as_ref();
-        let parent_dir = path.parent().unwrap_or(Path::new("."));
+        
+        let parent_dir = if path.is_dir() {
+            path
+        } else {
+            path.parent().unwrap_or(Path::new("."))
+        };
 
         // 1. 解析配置文件
-        let mut configs = Self::load_material_config(path)?;
+        let mut configs = Vec::new();
+        
+        if path.is_dir() {
+            let entries = fs::read_dir(path).map_err(|e| format!("Failed to read directory: {}", e))?;
+            for entry in entries {
+                let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+                let p = entry.path();
+                if p.extension().map_or(false, |ext| ext == "toml") {
+                    match Self::load_material_config(&p) {
+                        Ok(mut c) => configs.append(&mut c),
+                        Err(e) => eprintln!("Warning: Failed to load material config {:?}: {}", p, e),
+                    }
+                }
+            }
+        } else {
+            configs = Self::load_material_config(path)?;
+        }
 
         // 自动分配 Binding
         for config in &mut configs {

@@ -10,7 +10,7 @@ use crate::graphics::{
     Texture, TextureLoader,
     PointLight,
 };
-use crate::passes::{MeshForwardPass, RenderPass};
+use crate::passes::{MeshForwardPass, LinePass, RenderPass};
 use crate::uniforms::{CameraGpuUniform, CameraGpuUniformTrait, LightGpuUniform, LightGpuUniformTrait};
 
 impl RendererTrait for MainRenderer {
@@ -176,6 +176,7 @@ impl RendererTrait for MainRenderer {
             direct_lights: Vec::new(),
             point_lights: Vec::new(),
             ui_objects: Vec::new(),
+            lines: Vec::new(),
             frame_bind_group,
             frame_bind_group_layout,
             pass_bind_group,
@@ -214,13 +215,14 @@ impl RendererTrait for MainRenderer {
     fn collect_render_objects(&mut self) {
         self.model_objects.clear();
         self.ui_objects.clear();
+        self.lines.clear();
 
         // Hardcode adding monkey at origin
         if let Some(model) = self.model_cache.get("monkey") {
             self.model_objects.push((
                 model.clone(),
                 engine_core::ecs::Transform {
-                    translation: glam::Vec3::ZERO,
+                    translation: glam::Vec3::new(1.0, 0.0, 0.0),
                     rotation: glam::Quat::IDENTITY,
                     scale: glam::Vec3::ONE,
                 },
@@ -230,6 +232,22 @@ impl RendererTrait for MainRenderer {
         // Hardcode adding UI components
         // In a real ECS system, this would query UI entities
         self.ui_objects.push(Box::new(EngineStatsUi::new()));
+
+        // Hardcode adding lines (Axis Gizmo)
+        let mut add_line = |start: [f32; 3], end: [f32; 3], color: [f32; 4]| {
+            let vertex = |pos| crate::graphics::Vertex {
+                position: pos,
+                normal: [0.0; 3],
+                uv: [0.0; 2],
+                color,
+            };
+            self.lines.push(vertex(start));
+            self.lines.push(vertex(end));
+        };
+
+        add_line([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 1.0]); // X Axis (Red)
+        add_line([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 1.0]); // Y Axis (Green)
+        add_line([0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0]); // Z Axis (Blue)
 
         // Hardcode adding a point light
         self.point_lights.clear();
@@ -266,6 +284,8 @@ impl RendererTrait for MainRenderer {
         // BackgroundPass.render(self, ctx as &mut dyn SurfaceContextTrait, &mut encoder, &view)?;
         // 网格物体Pass
         MeshForwardPass.render(self, ctx as &mut dyn SurfaceContextTrait, &mut encoder, &view)?;
+        // 线条Pass
+        LinePass.render(self, ctx as &mut dyn SurfaceContextTrait, &mut encoder, &view)?;
         // EGUI Pass
         render_ui(self, ctx.device(), ctx.queue(), &mut encoder, &view);
 

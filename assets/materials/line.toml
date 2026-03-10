@@ -1,0 +1,10 @@
+[[materials]]
+name = "line"
+shader = "custom/line.wgsl"
+
+[materials.pipeline_state]
+blend_mode = "AlphaBlend"
+depth_write = false
+cull_mode = "None"
+topology = "LineList"
+depth_compare = "Always"

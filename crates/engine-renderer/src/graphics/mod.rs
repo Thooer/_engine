@@ -31,12 +31,24 @@ pub struct Vertex {
     pub color: [f32; 4],
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct InstanceRaw {
+    pub model: [[f32; 4]; 4],
+}
+
 pub trait VertexTrait {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
+}
+
+pub trait InstanceTrait {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }
 
 #[path = "VertexTrait_Vertex.rs"]
 mod gpu_vertex;
+#[path = "InstanceTrait_InstanceRaw.rs"]
+mod gpu_instance;
 
 /// 网格图元 (Submesh)
 ///

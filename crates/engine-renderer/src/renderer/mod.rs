@@ -204,6 +204,7 @@ pub struct MainRenderer {
     pub point_lights: Vec<PointLight>,
     pub model_objects: Vec<(Arc<GpuModel>, Transform)>,
     pub ui_objects: Vec<Box<dyn crate::ui::UiComponent>>,
+    pub lines: Vec<crate::graphics::Vertex>,
     
     // Frame (Group 0)
     pub frame_bind_group: wgpu::BindGroup,

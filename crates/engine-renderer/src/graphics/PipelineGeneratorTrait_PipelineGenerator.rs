@@ -7,6 +7,8 @@ use crate::graphics::PipelineGenerator;
 use crate::graphics::PipelineGeneratorTrait;
 use crate::graphics::VertexTrait;
 use crate::graphics::Vertex;
+use crate::graphics::InstanceTrait;
+use crate::graphics::InstanceRaw;
 
 use crate::graphics::GpuShader;
 use crate::graphics::PipelineState;
@@ -164,6 +166,20 @@ impl PipelineGeneratorTrait for PipelineGenerator {
         let cull_mode: Option<wgpu::Face> = pipeline_state.cull_mode.into();
         let depth_compare: wgpu::CompareFunction = pipeline_state.depth_compare.into();
         let depth_write_enabled = pipeline_state.depth_write;
+        let topology: wgpu::PrimitiveTopology = pipeline_state.topology.into();
+
+        // Determine vertex buffers
+        // Heuristic: If topology is TriangleList, we assume standard mesh rendering which supports instances.
+        // If LineList/PointList, we might skip instance buffer or use a different layout.
+        // For now, let's only add instance buffer for TriangleList/TriangleStrip.
+        let vertex_buffers = match topology {
+            wgpu::PrimitiveTopology::TriangleList | wgpu::PrimitiveTopology::TriangleStrip => {
+                vec![<Vertex as VertexTrait>::desc(), <InstanceRaw as InstanceTrait>::desc()]
+            }
+            _ => {
+                vec![<Vertex as VertexTrait>::desc()]
+            }
+        };
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some(shader_path),
@@ -173,7 +189,7 @@ impl PipelineGeneratorTrait for PipelineGenerator {
                 module: &module,
                 entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[<Vertex as VertexTrait>::desc()],
+                buffers: &vertex_buffers,
             },
             fragment: Some(wgpu::FragmentState {
                 module: &module,
@@ -186,7 +202,7 @@ impl PipelineGeneratorTrait for PipelineGenerator {
                 })],
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode,

@@ -21,14 +21,29 @@ struct MaterialUniform {
 @vertex
 fn vs_main(
     model: VertexInput,
+    instance: InstanceInput,
 ) -> VertexOutput {
+    let model_matrix = mat4x4<f32>(
+        instance.model_matrix_0,
+        instance.model_matrix_1,
+        instance.model_matrix_2,
+        instance.model_matrix_3,
+    );
+
     var out: VertexOutput;
-    // 简化的 MVP，实际可能需要 Model Matrix
-    // 这里假设 model matrix 是 identity 或者包含在 uniform 里（仅作示例）
-    out.world_position = model.position; 
-    out.world_normal = model.normal;
+    
+    // Apply Model Matrix
+    let world_pos = model_matrix * vec4<f32>(model.position, 1.0);
+    out.world_position = world_pos.xyz;
+    
+    // Transform Normal (Inverse Transpose for correct non-uniform scaling, but for now simple rotation/uniform scale is fine)
+    // Assuming uniform scale for now:
+    let world_normal = (model_matrix * vec4<f32>(model.normal, 0.0)).xyz;
+    out.world_normal = normalize(world_normal);
+
     out.uv = model.uv;
-    out.clip_position = camera.view_proj * vec4<f32>(model.position, 1.0);
+    out.clip_position = camera.view_proj * world_pos;
+    
     return out;
 }
 

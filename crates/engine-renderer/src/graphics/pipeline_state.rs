@@ -51,6 +51,27 @@ pub enum BlendMode {
     Add,
 }
 
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PrimitiveTopology {
+    PointList,
+    LineList,
+    LineStrip,
+    TriangleList,
+    TriangleStrip,
+}
+
+impl From<PrimitiveTopology> for wgpu::PrimitiveTopology {
+    fn from(val: PrimitiveTopology) -> Self {
+        match val {
+            PrimitiveTopology::PointList => wgpu::PrimitiveTopology::PointList,
+            PrimitiveTopology::LineList => wgpu::PrimitiveTopology::LineList,
+            PrimitiveTopology::LineStrip => wgpu::PrimitiveTopology::LineStrip,
+            PrimitiveTopology::TriangleList => wgpu::PrimitiveTopology::TriangleList,
+            PrimitiveTopology::TriangleStrip => wgpu::PrimitiveTopology::TriangleStrip,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct PipelineState {
     #[serde(default = "default_cull_mode")]
@@ -61,12 +82,15 @@ pub struct PipelineState {
     pub depth_compare: DepthCompare,
     #[serde(default = "default_blend_mode")]
     pub blend_mode: BlendMode,
+    #[serde(default = "default_primitive_topology")]
+    pub topology: PrimitiveTopology,
 }
 
 pub fn default_cull_mode() -> CullMode { CullMode::Back }
 pub fn default_depth_write() -> bool { true }
 pub fn default_depth_compare() -> DepthCompare { DepthCompare::Less }
 pub fn default_blend_mode() -> BlendMode { BlendMode::Opaque }
+pub fn default_primitive_topology() -> PrimitiveTopology { PrimitiveTopology::TriangleList }
 
 impl Default for PipelineState {
     fn default() -> Self {
@@ -75,6 +99,7 @@ impl Default for PipelineState {
             depth_write: default_depth_write(),
             depth_compare: default_depth_compare(),
             blend_mode: default_blend_mode(),
+            topology: default_primitive_topology(),
         }
     }
 }

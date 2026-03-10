@@ -35,3 +35,7 @@ pub trait RenderPass {
 pub struct MeshForwardPass;
 
 mod RenderPass_MeshForwardPass;
+
+pub struct LinePass;
+
+mod RenderPass_LinePass;

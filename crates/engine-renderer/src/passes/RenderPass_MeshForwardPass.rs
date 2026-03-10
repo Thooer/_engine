@@ -2,11 +2,14 @@ use super::{RenderPass, MeshForwardPass, PassResource, ResourceAccess};
 use crate::renderer::{MainRenderer, SurfaceContextTrait, FrameStartError};
 use glam::Mat4;
 
+use crate::graphics::InstanceRaw;
+use wgpu::util::DeviceExt;
+
 impl RenderPass for MeshForwardPass {
     fn render(
         &self,
         renderer: &MainRenderer,
-        _ctx: &mut dyn SurfaceContextTrait,
+        ctx: &mut dyn SurfaceContextTrait,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) -> Result<(), FrameStartError> {
@@ -63,8 +66,24 @@ impl RenderPass for MeshForwardPass {
 
                     if let Some(mesh_idx) = node.mesh_index {
                         if let Some(mesh) = model.meshes.get(mesh_idx) {
+                            
+                            // Create Instance Buffer for this draw call
+                            // Note: In production, use dynamic buffer or batched instancing
+                            let instance_data = InstanceRaw {
+                                model: node_matrix.to_cols_array_2d(),
+                            };
+                            
+                            let instance_buffer = ctx.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                label: Some("Instance Buffer"),
+                                contents: bytemuck::cast_slice(&[instance_data]),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            });
+
                             // Bind Vertex Buffer
                             rpass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                            // Bind Instance Buffer (Slot 1)
+                            rpass.set_vertex_buffer(1, instance_buffer.slice(..));
+                            
                             rpass.set_index_buffer(
                                 mesh.index_buffer.slice(..),
                                 wgpu::IndexFormat::Uint32,
