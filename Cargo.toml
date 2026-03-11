@@ -26,6 +26,7 @@ members = [
     "crates/engine-renderer",
     "crates/engine-app",
     "crates/engine-physics",
+    "crates/engine-events",
 ]
 # 未来可以添加更多子 crate
 

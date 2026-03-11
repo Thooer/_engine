@@ -4,51 +4,69 @@ alwaysApply: false
 ---
 # CI 规范
 
-CI 是一个 Rust 模块结构检查工具，让模块的"对外形状"集中在 mod.rs，实现细节拆分到同级 impl 文件、internal/ 目录和 tests/ 目录。
+## 目标
+
+Rust 无头文件结构，AI 阅读代码时需要追踪大量文件才能理解模块接口。
+本规范旨在恢复类似 C++ 的"头文件 + 实现"分离，让 AI **只需阅读 mod.rs/lib.rs 就能掌握模块的对外接口**。
+
+## 核心理念
+
+**所有对外接口必须集中在 mod.rs/lib.rs（头文件），实现细节拆分到独立文件。**
+
+---
 
 ## 模块结构
 
 ```
 my_module/
-├── mod.rs           # 对外暴露的 trait、struct
-├── Trait_Type.rs    # impl 实现文件
-├── internal/        # 内部辅助函数（可选）
-│   └── helper.rs    # 必须用 {} 包裹
-└── tests/          # 测试文件（可选）
-    └── Trait.rs     # 文件名必须与 trait 同名
+├── mod.rs              # 头文件：trait 定义、struct 声明、pub use 导出
+├── Trait_Type.rs       # 实现文件：trait impl
+├── internal/           # 内部函数（可选）
+│   └── helper.rs       # 必须用 {} 包裹，禁止方法签名
+└── tests/              # 测试文件（可选）
+    └── Trait.rs        # 文件名必须与 trait 同名
 ```
 
-## mod.rs 规则
+---
+
+## 核心规则
+
+### 1. mod.rs / lib.rs（头文件）
 
 | 规则 | 说明 |
 |------|------|
-| 禁止 impl | 任何形式的 impl 块都不允许 |
-| 禁止 include! | include! 只能放在实现文件中 |
-| 禁止私有 struct | struct 必须 pub |
-| 禁止顶层 fn | 所有方法必须通过 trait 暴露 |
-| 禁止 mod.rs中impl的任意声明 | 声明impl必须紧跟trait后，并且命名符合要求 |
+| 禁止 impl | 任何 impl 块都不允许出现在这里 |
+| 禁止 pub fn 附带函数体 | 要么 trait 化，要么用 include 宏把函数体转移到internal/中 |
+| 禁止内联 mod {} | 必须用 #[path = "..."] 声明子模块 |
+| 禁止通配符重导出 | 必须显式列出导出的内容 |
+| 禁止 privpub 混合 | 不能用 pub mod 导出子模块 |
 
-## impl 文件规则
+### 2. impl 文件（Trait_Type.rs）
 
 | 规则 | 说明 |
 |------|------|
+| 禁止 pub | 实现文件内部不需要 pub |
+| 禁止固有实现 | 只能 impl Trait，不能 impl StructName |
 | 单一 impl 块 | 同一 trait 的空 impl 除外 |
 | 文件命名 | TraitName_TypeName.rs 格式 |
-| 禁止 pub | impl 文件内部不需要 pub |
-| 禁止固有实现 | 必须通过 trait 暴露方法 |
 
-## internal/ 规则
+### 3. internal/ 目录
 
-- 禁止 mod.rs
-- 每个 .rs 文件必须用 `{}` 包裹
-- 禁止方法签名，只能有 `fn name() { ... }` 形式
+| 规则 | 说明 |
+|------|------|
+| 禁止 mod.rs | 不需要模块入口 |
+| 必须用 {} 包裹 | 每个文件必须用代码块包裹 |
+| 禁止方法签名 | 只能是 fn name() { ... } 形式 |
 
-## tests/ 规则
+### 4. tests/ 目录
 
-- 禁止 mod.rs
-- 必须在父 mod.rs 中声明：`mod tests;`
-- 声明必须紧跟 trait 后
-- 测试文件名必须与 trait 同名
+| 规则 | 说明 |
+|------|------|
+| 禁止 mod.rs | 不需要模块入口 |
+| 必须在父 mod 中声明 | mod tests; 紧跟 trait 声明 |
+| 文件名必须与 trait 同名 | 例如 trait Foo → tests/Foo.rs |
+
+---
 
 ## 命名禁止
 
@@ -57,36 +75,21 @@ my_module/
 
 ---
 
-## CI 命令
+## 违反规则时的修复方向
 
-```bash
-# 安装（从项目根目录）
-cargo install --path ci
-
-# 检查当前目录
-ci check
-
-# 检查指定目录
-ci check -r ./src
-
-# 自动修复（默认不要运行，应该人类手动运行）
-ci check -r ./src -f
-
-# 验证配置
-ci validate
-```
-
-## 自动修复 (--fix)
-
-| 修复类型 | 触发条件 |
+| 违规类型 | 修复方式 |
 |----------|----------|
-| RenameFile | 文件命名与 trait 不匹配 |
-| SplitImplFile | impl 文件包含多个 impl 块 |
-| MoveImplToFile | mod.rs 包含 impl 块 |
-| RemovePub | impl 文件包含 pub |
-| AddModuleDeclaration | tests/ 未在 mod.rs 声明 |
+| mod.rs 含 impl 块 | 移至 Trait_Type.rs |
+| impl 文件含 pub | 移除 pub 然后把struct或trait定义在mod.rs中  |
+| impl 文件含固有实现 | 改用 trait 方式暴露方法 |
+| 文件名不符合规范 | 重命名为 Trait_Type.rs 格式 |
+| internal/ 含方法签名 | 改用 fn name() { } 形式 |
+| tests/ 未声明 | 在 mod.rs 中添加 mod tests; |
 
 ---
 
+## 为什么禁止固有实现？
 
-编写 Rust 代码时遵循上述模块结构规范。使用 `ci check` 验证代码是否符合规范，使用 `ci check -f` 自动修复问题。
+固有实现（impl Type { ... }）会向外界暴露方法，但如果方法定义放在独立文件中，AI 必须阅读该文件才能知道这些方法的存在。
+
+**本规范的约束**：所有"能做什么"必须通过 trait 来表达，trait 定义在头文件，impl 在实现文件。只需阅读头文件就能知道完整接口。

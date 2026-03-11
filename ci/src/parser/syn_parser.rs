@@ -32,10 +32,14 @@ pub struct SynParsedSource {
     modules: Vec<ModuleBlock>,
     non_public_structs: Vec<String>,
     top_level_functions: Vec<String>,
+    top_level_function_bodies: Vec<(String, Vec<String>)>,  // (函数名, 函数体内的语句)
     has_pub: bool,
     has_include_macro: bool,
     is_brace_wrapped: bool,
     has_fn_sigs: bool,
+    has_pub_mod: bool,
+    wildcard_re_exports: Vec<(String, usize)>,  // (导出路径, 行号)
+    inline_mods: Vec<(String, usize)>,  // (模块名, 行号)
 }
 
 impl SynParsedSource {
@@ -94,7 +98,14 @@ impl SynParsedSource {
         let modules: Vec<ModuleBlock> = ast.items.iter()
             .filter_map(|item| {
                 if let Item::Mod(m) = item {
-                    Some(ModuleBlock { name: m.ident.to_string(), line_number: None })
+                    // 检查是 mod 还是 pub mod
+                    let is_pub = matches!(m.vis, syn::Visibility::Public(_));
+                    if !is_pub {
+                        Some(ModuleBlock { name: m.ident.to_string(), line_number: None })
+                    } else {
+                        // pub mod 也需要被识别为模块
+                        Some(ModuleBlock { name: m.ident.to_string(), line_number: None })
+                    }
                 } else {
                     None
                 }
@@ -114,6 +125,18 @@ impl SynParsedSource {
         let mut fn_sig_visitor = FnSigVisitor { found: false };
         fn_sig_visitor.visit_file(&ast);
         let has_fn_sigs = fn_sig_visitor.found;
+
+        let mut pub_mod_visitor = PubModVisitor { found: false };
+        pub_mod_visitor.visit_file(&ast);
+        let has_pub_mod = pub_mod_visitor.found;
+
+        let mut wildcard_visitor = WildcardReExportVisitor { exports: Vec::new(), content: content.clone() };
+        wildcard_visitor.visit_file(&ast);
+        let wildcard_re_exports = wildcard_visitor.exports;
+
+        let mut inline_mod_visitor = InlineModVisitor { mods: Vec::new(), content: content.clone() };
+        inline_mod_visitor.visit_file(&ast);
+        let inline_mods = inline_mod_visitor.mods;
         
         let mut struct_visitor = StructVisitor { names: Vec::new() };
         struct_visitor.visit_file(&ast);
@@ -129,6 +152,9 @@ impl SynParsedSource {
             })
             .collect();
         
+        // 收集顶层函数体信息：提取每个函数的语句
+        let top_level_function_bodies = extract_top_level_function_bodies(&content);
+        
         Ok(Box::new(Self {
             path,
             content,
@@ -137,10 +163,14 @@ impl SynParsedSource {
             modules,
             non_public_structs,
             top_level_functions,
+            top_level_function_bodies,
             has_pub,
             has_include_macro,
             is_brace_wrapped,
             has_fn_sigs,
+            has_pub_mod,
+            wildcard_re_exports,
+            inline_mods,
         }))
     }
 
@@ -587,6 +617,22 @@ impl ParsedSource for SynParsedSource {
     fn has_function_signatures(&self) -> bool {
         self.has_fn_sigs
     }
+
+    fn contains_pub_mod(&self) -> bool {
+        self.has_pub_mod
+    }
+
+    fn get_wildcard_re_exports(&self) -> Vec<(String, usize)> {
+        self.wildcard_re_exports.clone()
+    }
+
+    fn contains_inline_mod(&self) -> bool {
+        !self.inline_mods.is_empty()
+    }
+
+    fn get_inline_mods(&self) -> Vec<(String, usize)> {
+        self.inline_mods.clone()
+    }
     
     fn find_impl_line_number(&self) -> Option<usize> {
         for (line_num, line) in self.content.lines().enumerate() {
@@ -643,6 +689,187 @@ impl ParsedSource for SynParsedSource {
         }
         None
     }
+    
+    fn get_top_level_function_bodies(&self) -> Vec<(String, Vec<String>)> {
+        self.top_level_function_bodies.clone()
+    }
+    
+    fn is_include_macro_in_function_body(&self) -> bool {
+        self.get_include_macro_function_info().is_some()
+    }
+    
+    fn get_include_macro_function_info(&self) -> Option<(String, String)> {
+        // 遍历每个顶层函数
+        for (fn_name, statements) in &self.top_level_function_bodies {
+            // 检查函数体中是否包含 include! 宏
+            for stmt in statements {
+                if stmt.contains("include!(") || stmt.contains("include! (") {
+                    // 提取 include! 中的文件名
+                    if let Some(file_name) = extract_include_file_name(stmt) {
+                        return Some((fn_name.clone(), file_name));
+                    }
+                }
+            }
+        }
+        None
+    }
+    
+    fn get_all_include_macro_functions(&self) -> Vec<String> {
+        let mut result = Vec::new();
+        // 遍历每个顶层函数
+        for (fn_name, statements) in &self.top_level_function_bodies {
+            // 检查函数体中是否包含 include! 宏
+            for stmt in statements {
+                if stmt.contains("include!(") || stmt.contains("include! (") {
+                    result.push(fn_name.clone());
+                    break;  // 每个函数只需要记录一次
+                }
+            }
+        }
+        result
+    }
+}
+
+/// 辅助函数：从 include! 语句中提取文件名
+fn extract_include_file_name(stmt: &str) -> Option<String> {
+    let pattern = r#"include!\s*\(\s*["'](?:internal/)?([^"']+)["']\s*\)"#;
+    if let Ok(re) = regex::Regex::new(pattern) {
+        if let Some(caps) = re.captures(stmt) {
+            return Some(caps.get(1)?.as_str().to_string());
+        }
+    }
+    None
+}
+
+/// 辅助函数：从源代码中提取顶层函数体
+fn extract_top_level_function_bodies(content: &str) -> Vec<(String, Vec<String>)> {
+    let mut result = Vec::new();
+    
+    let lines: Vec<&str> = content.lines().collect();
+    let mut i = 0;
+    
+    while i < lines.len() {
+        let line = lines[i].trim();
+        
+        // 检查是否是函数开始（fn 开头）
+        // 跳过以 /// 或 // 开头的注释行
+        let is_fn_line = line.starts_with("fn ") || (line.starts_with("pub ") && !line.starts_with("pub struct") && !line.starts_with("pub trait") && !line.starts_with("pub enum"));
+        
+        if is_fn_line {
+            let fn_start = i;
+            
+            // 找到函数体的开始（{）
+            // 需要处理多行函数签名的情况
+            let mut j = fn_start;
+            while j < lines.len() && !lines[j].contains('{') {
+                j += 1;
+            }
+            
+            if j < lines.len() && lines[j].contains('{') {
+                // 提取函数名
+                let fn_signature_line = lines[fn_start];
+                let fn_name = fn_signature_line
+                    .strip_prefix("fn ")
+                    .or_else(|| fn_signature_line.strip_prefix("pub fn "))
+                    .and_then(|s| s.split_whitespace().next())
+                    .map(|s| s.trim_end_matches('(').to_string());
+                
+                if let Some(fn_name) = fn_name {
+                    let mut brace_count = 0;
+                    let mut found_start = false;
+                    
+                    // 从 { 所在行开始提取函数体内容
+                    let body_start = j;
+                    
+                    for (k, line) in lines[j..].iter().enumerate() {
+                        for ch in line.chars() {
+                            if ch == '{' {
+                                brace_count += 1;
+                                found_start = true;
+                            } else if ch == '}' {
+                                brace_count -= 1;
+                            }
+                        }
+                        // 函数体结束条件：找到过 { 且 brace_count 回到 0
+                        if found_start && brace_count == 0 {
+                            // 处理函数体在同一行的情况（如 fn foo() { }）
+                            // body_start + 1 > j + k 表示 { 和 } 在同一行，没有内容
+                            if body_start < j + k {
+                                // 函数体结束，只提取 { 和 } 之间的内容（不包括 { 和 }）
+                                let body_lines: Vec<String> = lines[body_start + 1..j + k]
+                                    .iter()
+                                    .map(|s| s.to_string())
+                                    .collect();
+                            
+                                let statements = parse_function_body_statements(&body_lines);
+                                result.push((fn_name, statements));
+                            } else {
+                                // { 和 } 在同一行，没有函数体内容
+                                result.push((fn_name, Vec::new()));
+                            }
+                            
+                            // 设置 i 为函数体结束的位置，以便继续寻找下一个函数
+                            i = j + k;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    
+    result
+}
+
+/// 辅助函数：解析函数体中的语句
+fn parse_function_body_statements(body_lines: &[String]) -> Vec<String> {
+    let mut statements = Vec::new();
+    let mut current_stmt = String::new();
+    let mut brace_depth = 0;
+    
+    for line in body_lines {
+        let trimmed = line.trim();
+        
+        if trimmed == "{" {
+            brace_depth += 1;
+            if brace_depth > 1 {
+                current_stmt.push_str(trimmed);
+            }
+            continue;
+        }
+        if trimmed == "}" {
+            brace_depth -= 1;
+            if brace_depth > 0 {
+                current_stmt.push_str(trimmed);
+            }
+            continue;
+        }
+        
+        for ch in trimmed.chars() {
+            if ch == '{' {
+                brace_depth += 1;
+            } else if ch == '}' {
+                brace_depth -= 1;
+            }
+        }
+        
+        if !current_stmt.is_empty() {
+            current_stmt.push_str(" ");
+        }
+        current_stmt.push_str(trimmed);
+        
+        if brace_depth == 0 && !current_stmt.is_empty() {
+            statements.push(current_stmt.clone());
+            current_stmt.clear();
+        }
+    }
+    
+    if !current_stmt.trim().is_empty() {
+        statements.push(current_stmt);
+    }
+    
+    statements
 }
 
 fn extract_type_name(ty: &syn::Type) -> Option<String> {
@@ -711,5 +938,60 @@ impl<'ast> Visit<'ast> for StructVisitor {
             self.names.push(item.ident.to_string());
         }
         syn::visit::visit_item_struct(self, item);
+    }
+}
+
+/// 检测 pub mod 声明的 Visitor
+struct PubModVisitor { found: bool }
+
+impl<'ast> Visit<'ast> for PubModVisitor {
+    fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        if matches!(item.vis, syn::Visibility::Public(_)) {
+            self.found = true;
+        }
+        syn::visit::visit_item_mod(self, item);
+    }
+}
+
+/// 检测通配符重导出的 Visitor
+struct WildcardReExportVisitor { exports: Vec<(String, usize)>, content: String }
+
+impl<'ast> Visit<'ast> for WildcardReExportVisitor {
+    fn visit_file(&mut self, file: &'ast syn::File) {
+        // 使用文本搜索更简单直接
+        for (line_num, line) in self.content.lines().enumerate() {
+            let trimmed = line.trim();
+            // 匹配 pub use xxx::*;
+            if trimmed.starts_with("pub use ") && trimmed.contains("::*") {
+                // 提取路径：pub use xxx::* -> xxx
+                if let Some(path) = trimmed.strip_prefix("pub use ") {
+                    let path = path.trim_end_matches("::*").trim_end_matches("::*;").to_string();
+                    self.exports.push((path, line_num));
+                }
+            }
+        }
+        syn::visit::visit_file(self, file);
+    }
+}
+
+/// 检测内联 mod 的 Visitor
+struct InlineModVisitor { mods: Vec<(String, usize)>, content: String }
+
+impl<'ast> Visit<'ast> for InlineModVisitor {
+    fn visit_file(&mut self, file: &'ast syn::File) {
+        // 使用文本搜索更简单直接
+        for (line_num, line) in self.content.lines().enumerate() {
+            let trimmed = line.trim();
+            // 匹配 mod xxx { 形式的内联模块
+            if trimmed.starts_with("mod ") && trimmed.contains('{') {
+                if let Some(name) = trimmed.strip_prefix("mod ") {
+                    let name = name.split('{').next().unwrap_or("").split_whitespace().next();
+                    if let Some(name) = name {
+                        self.mods.push((name.to_string(), line_num));
+                    }
+                }
+            }
+        }
+        syn::visit::visit_file(self, file);
     }
 }

@@ -153,7 +153,7 @@ pub trait ShaderLoaderTrait {
 }
 
 #[path = "ShaderLoaderTrait_ShaderLoader.rs"]
-pub mod gpu_shader_loader;
+mod gpu_shader_loader;
 
 #[derive(Debug, Deserialize)]
 pub struct MaterialFile {
@@ -226,7 +226,7 @@ pub trait MaterialLoaderTrait {
 }
 
 #[path = "MaterialLoaderTrait_MaterialLoader.rs"]
-pub mod gpu_material_loader;
+mod gpu_material_loader;
 
 /// Texture 生成器
 pub trait TextureLoader {
@@ -257,7 +257,7 @@ pub trait TextureLoader {
 }
 
 #[path = "TextureLoader_Texture.rs"]
-pub mod gpu_texture_loader;
+mod gpu_texture_loader;
 
 /// Pipeline 生成器
 pub trait PipelineGeneratorTrait {
@@ -297,7 +297,7 @@ pub struct PipelineGenerator {
 }
 
 #[path = "PipelineGeneratorTrait_PipelineGenerator.rs"]
-pub mod gpu_pipeline_generator;
+mod gpu_pipeline_generator;
 
 // ============================================================================
 //  Model (模型)
@@ -335,7 +335,7 @@ pub trait ModelLoaderTrait {
 }
 
 #[path = "ModelLoaderTrait_ModelLoader.rs"]
-pub mod gpu_model_loader;
+mod gpu_model_loader;
 
 // ============================================================================
 //  Light (灯光)
@@ -364,11 +364,11 @@ pub trait DirectLightTrait {
 }
 
 #[path = "DirectLightTrait_DirectLight.rs"]
-pub mod gpu_direct_light;
+mod gpu_direct_light;
 
 pub trait PointLightTrait {
     fn new(position: Vec3, color: Vec3, intensity: f32, range: f32) -> Self;
 }
 
 #[path = "PointLightTrait_PointLight.rs"]
-pub mod gpu_point_light;
+mod gpu_point_light;

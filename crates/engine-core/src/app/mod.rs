@@ -29,7 +29,7 @@ pub trait EngineRunnerTrait {
     fn run<A: Application + 'static>(app: A) -> Result<(), Box<dyn std::error::Error>>;
 }
 
-#[path = "ApplicationHandler_EngineApp.rs"]
+#[path = "WinitAppHandler.rs"]
 mod application_handler_engine_app;
 
 #[path = "EngineRunnerTrait_EngineRunner.rs"]

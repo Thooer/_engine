@@ -77,6 +77,9 @@ parking_lot = "0.12"
 pathdiff = "0.2"
 glob = "0.3"
 
+# 正则表达式
+regex = "1.10"
+
 # 输出格式化
 colored = "2.1"
 

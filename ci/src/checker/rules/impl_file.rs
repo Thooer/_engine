@@ -54,10 +54,10 @@ impl Rule for ImplFileRule {
                 let line = parsed.find_impl_line_number();
 
                 if inherent_types.is_empty() {
-                    report.add_error_with_line(impl_path.clone(), "禁止固有实现（inherent impl）。所有方法必须通过 trait 暴露，然后在实现文件中 impl trait".to_string(), line);
+                    report.add_error_with_line(impl_path.clone(), "禁止固有实现（inherent impl）。所有方法必须通过 trait 暴露，然后在实现文件中 impl trait，或者转换成单函数通过include宏把方法体转移到internal文件夹中，头文件只保留方法签名".to_string(), line);
                 } else {
                     let type_list = inherent_types.join("、");
-                    report.add_error_with_line(impl_path.clone(), format!("禁止固有实现（inherent impl）：{}。所有方法必须通过 trait 暴露，然后在实现文件中 impl trait", type_list), line);
+                    report.add_error_with_line(impl_path.clone(), format!("禁止固有实现（inherent impl）：{}。所有方法必须通过 trait 暴露，然后在实现文件中 impl trait，或者转换成单函数通过include宏把方法体转移到internal文件夹中，头文件只保留方法签名", type_list), line);
                 }
                 continue;
             }
@@ -93,20 +93,44 @@ impl Rule for ImplFileRule {
             }
 
             // 检查：文件命名必须和 trait 对应
+            // 只对内部 trait 检查，外部 trait（如 winit::ApplicationHandler）跳过此检查
             if (!has_multiple_impls || !is_empty_impls_exception) && context.config.checks.impl_file.naming_must_match_trait {
                 if let Some(trait_name) = parsed.get_impl_trait_name() {
-                    let actual_name = impl_path.file_stem().unwrap().to_string_lossy();
-
-                    if let Some(type_name) = parsed.get_impl_type_name() {
-                        let expected_name = format!("{}_{}", trait_name, type_name);
-
-                        if actual_name != expected_name {
-                            let line = parsed.find_impl_line_number();
-                            report.add_error_with_line(impl_path.clone(), format!("文件命名必须和 trait 对应：期望 {}，实际 {}", expected_name, actual_name), line);
+                    // 读取 mod.rs 中的 trait 定义列表（通过 context传入的已解析的 mod.rs）
+                    // 检查这个 trait 是否在 mod.rs 中定义
+                    let mod_rs_path = impl_path.parent().unwrap().join("mod.rs");
+                    let is_internal_trait = if mod_rs_path.exists() {
+                        // 读取 mod.rs 内容并检查是否定义了此 trait
+                        if let Ok(mod_content) = std::fs::read_to_string(&mod_rs_path) {
+                            mod_content.contains(&format!("trait {}", trait_name))
+                        } else {
+                            false
                         }
                     } else {
-                        let line = parsed.find_impl_line_number();
-                        report.add_error_with_line(impl_path.clone(), format!("文件命名必须使用 {{TraitName}}_{{TypeName}}.rs 格式，实际 {}", actual_name), line);
+                        // 尝试 lib.rs
+                        let lib_rs_path = impl_path.parent().unwrap().join("lib.rs");
+                        if let Ok(lib_content) = std::fs::read_to_string(&lib_rs_path) {
+                            lib_content.contains(&format!("trait {}", trait_name))
+                        } else {
+                            false
+                        }
+                    };
+                    
+                    // 只有内部 trait 才检查文件名
+                    if is_internal_trait {
+                        let actual_name = impl_path.file_stem().unwrap().to_string_lossy();
+
+                        if let Some(type_name) = parsed.get_impl_type_name() {
+                            let expected_name = format!("{}_{}", trait_name, type_name);
+
+                            if actual_name != expected_name {
+                                let line = parsed.find_impl_line_number();
+                                report.add_error_with_line(impl_path.clone(), format!("文件命名必须和 trait 对应：期望 {}，实际 {}", expected_name, actual_name), line);
+                            }
+                        } else {
+                            let line = parsed.find_impl_line_number();
+                            report.add_error_with_line(impl_path.clone(), format!("文件命名必须使用 {{TraitName}}_{{TypeName}}.rs 格式，实际 {}", actual_name), line);
+                        }
                     }
                 }
             }

@@ -74,7 +74,7 @@ pub trait RunAppTrait {
 #[path = "Default_AppConfig.rs"]
 mod default_app_config;
 
-#[path = "ApplicationHandler_AppRunner.rs"]
+#[path = "WinitAppRunnerHandler.rs"]
 mod application_handler_app_runner;
 
 #[path = "RunAppTrait_RunApp.rs"]

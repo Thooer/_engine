@@ -2,8 +2,11 @@
 //!
 //! 注意：此文件不包含任何 `impl` 相关实现，只定义类型与别名。
 
-// 对外暴露 bevy_ecs 常用类型，方便上层直接使用
-pub use bevy_ecs::prelude::*;
+// 注意：禁止使用通配符重导出，需要使用 bevy_ecs 的类型时请直接使用
+// use bevy_ecs::prelude::*;
+
+// 如果需要使用 bevy_ecs 的类型，在使用的地方直接引入
+// 示例：use bevy_ecs::prelude::{Entity, World, SystemState};
 
 use glam::{Quat, Vec3};
 

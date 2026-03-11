@@ -93,6 +93,18 @@ pub struct ModRsCheck {
     /// trait 定义后紧跟的 impl 模块声明，文件路径必须以 trait 名称开头
     #[serde(default = "default_true")]
     pub trait_impl_order: bool,
+    /// 禁止使用 pub mod 声明
+    #[serde(default = "default_true")]
+    pub forbid_pub_mod: bool,
+    /// 禁止使用通配符重导出 (pub use xxx::*;)
+    #[serde(default = "default_true")]
+    pub forbid_wildcard_re_exports: bool,
+    /// 禁止内联 mod 声明 (mod xxx { ... })
+    #[serde(default = "default_true")]
+    pub forbid_inline_mod: bool,
+    /// 目录必须有 mod.rs 或 lib.rs（只有 internal/ 和 tests/ 是例外）
+    #[serde(default = "default_true")]
+    pub require_dir_has_entry: bool,
 }
 
 impl Default for ModRsCheck {
@@ -103,6 +115,10 @@ impl Default for ModRsCheck {
             struct_must_be_public: true,
             forbid_free_functions: true,
             trait_impl_order: true,
+            forbid_pub_mod: true,
+            forbid_wildcard_re_exports: true,
+            forbid_inline_mod: true,
+            require_dir_has_entry: true,
         }
     }
 }
@@ -188,6 +204,13 @@ pub struct NamingCheck {
     pub forbid_impl_suffix: bool,
     #[serde(default = "default_true")]
     pub forbid_tests_suffix: bool,
+    /// 文件名中允许的最大下划线数量（0 表示不检查）
+    #[serde(default = "default_max_underscores")]
+    pub max_underscores: usize,
+}
+
+fn default_max_underscores() -> usize {
+    1
 }
 
 impl Default for NamingCheck {
@@ -196,6 +219,7 @@ impl Default for NamingCheck {
             enabled: true,
             forbid_impl_suffix: true,
             forbid_tests_suffix: true,
+            max_underscores: 1,
         }
     }
 }

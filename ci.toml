@@ -15,7 +15,8 @@ entries = [
     "crates/engine-core/src/lib.rs",
     "crates/engine-renderer/src/lib.rs",
     "crates/engine-app/src/lib.rs",
-    "crates/engine-physics/src/lib.rs"
+    "crates/engine-physics/src/lib.rs",
+    "crates/engine-events/src/lib.rs"
 ]
 
 # ============================================================================
@@ -60,6 +61,8 @@ test_file_must_match_trait = true
 enabled = true
 forbid_impl_suffix = true
 forbid_tests_suffix = true
+# 文件名中允许的最大下划线数量（0 表示不检查，默认为 1）
+max_underscores = 1
 
 # ============================================================================
 # 白名单配置（豁免规则）

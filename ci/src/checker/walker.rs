@@ -106,6 +106,7 @@ impl Walker {
         let mod_names = parsed.get_module_names();
 
         // 收集同目录下的 .rs 文件（impl 文件）
+        // 排除 internal 和 tests 目录中的文件
         if let Ok(entries) = fs::read_dir(base_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -124,6 +125,14 @@ impl Walker {
                 // 跳过特殊文件
                 if file_name == "mod.rs" || file_name == "lib.rs" || file_stem == "main" {
                     continue;
+                }
+
+                // 跳过 internal 和 tests 目录中的文件
+                if let Some(parent) = path.parent() {
+                    let parent_name = parent.file_name().unwrap_or_default().to_string_lossy();
+                    if parent_name == "internal" || parent_name == "tests" {
+                        continue;
+                    }
                 }
 
                 // 如果这个文件名对应一个目录模块（xxx.rs 对应 xxx/ 目录），跳过
@@ -210,7 +219,7 @@ impl Walker {
             }
         }
 
-        // 收集 impl 文件
+        // 收集 impl 文件（排除 internal 和 tests 目录中的文件）
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -228,6 +237,14 @@ impl Walker {
 
                 if file_name == "mod.rs" || file_name == "lib.rs" || file_stem == "main" {
                     continue;
+                }
+
+                // 跳过 internal 和 tests 目录中的文件
+                if let Some(parent) = path.parent() {
+                    let parent_name = parent.file_name().unwrap_or_default().to_string_lossy();
+                    if parent_name == "internal" || parent_name == "tests" {
+                        continue;
+                    }
                 }
 
                 module.impl_files.push(path);

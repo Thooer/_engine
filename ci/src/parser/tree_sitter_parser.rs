@@ -38,6 +38,7 @@ pub struct TreeSitterParsedSource {
     modules: Vec<ModuleBlock>,
     non_public_structs: Vec<String>,
     top_level_functions: Vec<String>,
+    top_level_function_bodies: Vec<(String, Vec<String>)>,
     has_pub: bool,
     has_include_macro: bool,
     is_brace_wrapped: bool,
@@ -69,6 +70,7 @@ impl TreeSitterParsedSource {
             modules: Vec::new(),
             non_public_structs: Vec::new(),
             top_level_functions: Vec::new(),
+            top_level_function_bodies: Vec::new(),
             has_pub: false,
             has_include_macro: false,
             has_fn_sigs: false,
@@ -76,6 +78,9 @@ impl TreeSitterParsedSource {
         visitor.visit_node(&root_node);
 
         let is_brace_wrapped = trimmed.starts_with('{') && trimmed.ends_with('}');
+
+        // 提取顶层函数体信息
+        let top_level_function_bodies = Self::extract_top_level_function_bodies(&content);
 
         Ok(Box::new(Self {
             path,
@@ -85,6 +90,7 @@ impl TreeSitterParsedSource {
             modules: visitor.modules,
             non_public_structs: visitor.non_public_structs,
             top_level_functions: visitor.top_level_functions,
+            top_level_function_bodies,
             has_pub: visitor.has_pub,
             has_include_macro: visitor.has_include_macro,
             is_brace_wrapped,
@@ -378,7 +384,139 @@ impl ParsedSource for TreeSitterParsedSource {
         }
         None
     }
-
+    
+    fn get_top_level_function_bodies(&self) -> Vec<(String, Vec<String>)> {
+        self.top_level_function_bodies.clone()
+    }
+    
+    fn is_include_macro_in_function_body(&self) -> bool {
+        self.get_include_macro_function_info().is_some()
+    }
+    
+    fn get_include_macro_function_info(&self) -> Option<(String, String)> {
+        for (fn_name, statements) in &self.top_level_function_bodies {
+            for stmt in statements {
+                if stmt.contains("include!(") || stmt.contains("include! (") {
+                    if let Some(file_name) = extract_include_file_name(stmt) {
+                        return Some((fn_name.clone(), file_name));
+                    }
+                }
+            }
+        }
+        None
+    }
+    
+    fn get_top_level_function_bodies(&self) -> Vec<(String, Vec<String>)> {
+        self.top_level_function_bodies.clone()
+    }
+}
+                    let fn_name = lines[fn_start]
+                        .strip_prefix("fn ")
+                        .and_then(|s| s.split_whitespace().next())
+                        .map(|s| s.trim_end_matches('(').to_string());
+                    
+                    if let Some(fn_name) = fn_name {
+                        let mut brace_count = 0;
+                        let mut body_start = i;
+                        let mut found_start = false;
+                        
+                        for (j, line) in lines[i..].iter().enumerate() {
+                            for ch in line.chars() {
+                                if ch == '{' {
+                                    brace_count += 1;
+                                    found_start = true;
+                                } else if ch == '}' {
+                                    brace_count -= 1;
+                                }
+                            }
+                            if found_start && brace_count == 0 {
+                                let body_lines: Vec<String> = lines[body_start..i + j + 1]
+                                    .iter()
+                                    .map(|s| s.to_string())
+                                    .collect();
+                                
+                                let statements = Self::parse_function_body_statements(&body_lines);
+                                result.push((fn_name, statements));
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else if line.starts_with("fn ") && line.contains('{') {
+                let fn_name = line
+                    .strip_prefix("fn ")
+                    .and_then(|s| s.split_whitespace().next())
+                    .map(|s| s.trim_end_matches('(').to_string());
+                
+                if let Some(fn_name) = fn_name {
+                    if let Some(start) = line.find('{') {
+                        if let Some(end) = line.rfind('}') {
+                            let body = &line[start+1..end];
+                            let statements: Vec<String> = body
+                                .split(';')
+                                .filter(|s| !s.trim().is_empty())
+                                .map(|s| s.trim().to_string())
+                                .collect();
+                            result.push((fn_name, statements));
+                        }
+                    }
+                }
+            }
+            i += 1;
+        }
+        
+        result
+    }
+    
+    fn parse_function_body_statements(body_lines: &[String]) -> Vec<String> {
+        let mut statements = Vec::new();
+        let mut current_stmt = String::new();
+        let mut brace_depth = 0;
+        
+        for line in body_lines {
+            let trimmed = line.trim();
+            
+            if trimmed == "{" {
+                brace_depth += 1;
+                if brace_depth > 1 {
+                    current_stmt.push_str(trimmed);
+                }
+                continue;
+            }
+            if trimmed == "}" {
+                brace_depth -= 1;
+                if brace_depth > 0 {
+                    current_stmt.push_str(trimmed);
+                }
+                continue;
+            }
+            
+            for ch in trimmed.chars() {
+                if ch == '{' {
+                    brace_depth += 1;
+                } else if ch == '}' {
+                    brace_depth -= 1;
+                }
+            }
+            
+            if !current_stmt.is_empty() {
+                current_stmt.push_str(" ");
+            }
+            current_stmt.push_str(trimmed);
+            
+            if brace_depth == 0 && !current_stmt.is_empty() {
+                statements.push(current_stmt.clone());
+                current_stmt.clear();
+            }
+        }
+        
+        if !current_stmt.trim().is_empty() {
+            statements.push(current_stmt);
+        }
+        
+        statements
+    }
+    
     fn extract_impl_code(&self, index: usize) -> Option<String> {
         if index >= self.impls.len() {
             return None;
@@ -461,6 +599,7 @@ struct AstVisitor<'a> {
     modules: Vec<ModuleBlock>,
     non_public_structs: Vec<String>,
     top_level_functions: Vec<String>,
+    top_level_function_bodies: Vec<(String, Vec<String>)>,
     has_pub: bool,
     has_include_macro: bool,
     has_fn_sigs: bool,

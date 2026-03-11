@@ -1091,10 +1091,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine-events"
+version = "0.1.0"
+dependencies = [
+ "bevy_ecs",
+ "bincode",
+ "glam 0.30.10",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "engine-physics"
 version = "0.1.0"
 dependencies = [
+ "bevy_ecs",
  "engine-core",
+ "engine-events",
  "glam 0.30.10",
  "rapier2d",
  "rapier3d",

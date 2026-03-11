@@ -9,6 +9,8 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 # 核心依赖
 engine-core = { path = "../engine-core" }
+engine-events = { path = "../engine-events" }
+bevy_ecs = { workspace = true }
 glam = { workspace = true }
 tracing = { workspace = true }
 

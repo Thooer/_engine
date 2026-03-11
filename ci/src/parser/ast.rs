@@ -55,6 +55,18 @@ pub trait ParsedSource: Send + Sync {
     fn contains_include_macro(&self) -> bool;
     fn is_brace_wrapped(&self) -> bool;
     fn has_function_signatures(&self) -> bool;
+
+    /// 检查是否包含 pub mod 声明
+    fn contains_pub_mod(&self) -> bool;
+
+    /// 获取所有通配符重导出 (pub use xxx::*;)，返回 (导出路径, 行号) 列表
+    fn get_wildcard_re_exports(&self) -> Vec<(String, usize)>;
+
+    /// 检查是否包含内联 mod 声明 (mod xxx { ... })
+    fn contains_inline_mod(&self) -> bool;
+
+    /// 获取所有内联 mod 声明，返回 (模块名, 行号) 列表
+    fn get_inline_mods(&self) -> Vec<(String, usize)>;
     
     // 行号查找
     fn find_impl_line_number(&self) -> Option<usize>;
@@ -63,6 +75,18 @@ pub trait ParsedSource: Send + Sync {
     fn find_function_line_number(&self, name: &str) -> Option<usize>;
     fn find_module_line_number(&self, name: &str) -> Option<usize>;
     fn find_include_macro_line_number(&self) -> Option<usize>;
+    
+    /// 获取顶层函数信息（名称和包含的语句）
+    fn get_top_level_function_bodies(&self) -> Vec<(String, Vec<String>)>;
+    
+    /// 检查 include! 宏是否在函数体内部
+    fn is_include_macro_in_function_body(&self) -> bool;
+    
+    /// 检查 include! 宏是否在函数体内部，返回所在的函数名和 include! 宏的文件名
+    fn get_include_macro_function_info(&self) -> Option<(String, String)>;
+    
+    /// 获取所有函数体中包含 include! 宏的函数名列表
+    fn get_all_include_macro_functions(&self) -> Vec<String>;
 }
 
 #[derive(Debug, Clone)]

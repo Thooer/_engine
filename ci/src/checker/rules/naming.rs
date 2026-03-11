@@ -58,6 +58,19 @@ impl Rule for NamingRule {
                     );
                 }
             }
+
+            // 检查：文件名中下划线数量（TraitName_TypeName.rs 格式，最多一个下划线）
+            if context.config.checks.naming.max_underscores > 0 {
+                let stem = impl_path.file_stem().unwrap().to_string_lossy();
+                let underscore_count = stem.matches('_').count();
+                if underscore_count > context.config.checks.naming.max_underscores {
+                    report.add_error(
+                        impl_path.clone(),
+                        format!("文件名中下划线数量超过限制：期望最多 {} 个下划线，实际 {} 个（{}）",
+                            context.config.checks.naming.max_underscores, underscore_count, stem),
+                    );
+                }
+            }
         }
 
         report
