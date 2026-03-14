@@ -3,10 +3,9 @@
 //! 提供一些与相机相关的通用系统 / 工具函数，避免在示例中重复实现。
 
 use glam::Vec3;
-use winit::keyboard::KeyCode;
 
 use crate::ecs::{Camera3D, World};
-use crate::input::{InputState, InputStateExt};
+use crate::input::{InputCode, InputState, InputStateExt};
 
 /// 简单 3D 自由飞行相机控制（WASD + Space/Ctrl）。
 ///
@@ -18,6 +17,7 @@ use crate::input::{InputState, InputStateExt};
 /// 
 /// 注意：现在从 World 中获取 InputState Resource，_input 参数保留用于兼容但已废弃
 #[allow(unused_variables)]
+#[allow(dead_code)]
 pub fn camera3d_fly_wasd(world: &mut World, _input: &InputState, dt: f32, speed: f32) {
     // 从 ECS World 获取 InputState
     let input = match world.get_resource::<InputState>() {
@@ -27,22 +27,22 @@ pub fn camera3d_fly_wasd(world: &mut World, _input: &InputState, dt: f32, speed:
 
     let mut dir = Vec3::ZERO;
 
-    if input.is_pressed(KeyCode::KeyW) {
+    if input.is_pressed(InputCode::KeyW) {
         dir.z -= 1.0;
     }
-    if input.is_pressed(KeyCode::KeyS) {
+    if input.is_pressed(InputCode::KeyS) {
         dir.z += 1.0;
     }
-    if input.is_pressed(KeyCode::KeyA) {
+    if input.is_pressed(InputCode::KeyA) {
         dir.x -= 1.0;
     }
-    if input.is_pressed(KeyCode::KeyD) {
+    if input.is_pressed(InputCode::KeyD) {
         dir.x += 1.0;
     }
-    if input.is_pressed(KeyCode::Space) {
+    if input.is_pressed(InputCode::KeySpace) {
         dir.y += 1.0;
     }
-    if input.is_pressed(KeyCode::ControlLeft) || input.is_pressed(KeyCode::ControlRight) {
+    if input.is_pressed(InputCode::ControlLeft) || input.is_pressed(InputCode::ControlRight) {
         dir.y -= 1.0;
     }
 

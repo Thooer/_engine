@@ -4,6 +4,7 @@ use raw_window_handle::RawWindowHandle;
 use winit::window::WindowId;
 
 /// 窗口 trait，提供窗口操作和句柄访问
+#[allow(dead_code)]
 pub trait WindowTrait {
     /// 获取窗口 ID
     fn id(&self) -> WindowId;
@@ -24,6 +25,7 @@ pub trait WindowTrait {
 mod tests;
 
 /// 事件循环控制
+#[allow(dead_code)]
 pub struct PlatformEventLoop {
     // 预留：后续会扩展为更完整的 event loop 抽象
 }

@@ -8,6 +8,7 @@ use glam::Vec3;
 
 /// 形状查询类型
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub enum ShapeQuery {
     Sphere { radius: f32 },
     Cuboid { half_extents: Vec3 },
@@ -15,6 +16,7 @@ pub enum ShapeQuery {
 }
 
 /// 物理查询模块 Trait
+#[allow(dead_code)]
 pub trait OverlapQueryTrait {
     fn overlap_sphere(
         &self,

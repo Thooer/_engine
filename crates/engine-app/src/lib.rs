@@ -5,6 +5,7 @@
 use std::time::Instant;
 
 use bevy_ecs::prelude::World;
+use engine_core::engine::{EngineCore, EngineCoreTrait, EngineConfig};
 use engine_renderer::renderer::{
     DefaultSurfaceContextNew, MainRenderer, SurfaceContext, SurfaceContextNew, SurfaceContextTrait, SurfaceSize,
 };
@@ -19,38 +20,69 @@ mod schedule;
 pub use schedule::{SystemSchedule, SystemFn, SystemStage};
 pub use engine_core::FrameCounter;
 
-#[derive(Clone, Copy, Debug)]
-pub struct AppConfig {
-    pub title: &'static str,
-    pub max_frames: Option<u32>,
-    pub fixed_dt_seconds: Option<f32>,
-}
+/// 应用配置（向后兼容别名）
+pub type AppConfig = EngineConfig;
 
 pub struct Engine {
-    window: Option<&'static Window>,
-    ctx: Option<SurfaceContext<'static>>,
-    // input 已移除，只使用 ECS Resource: world.get_resource::<InputState>()
-    pub world: World,
+    /// 引擎核心（ECS World + 配置）
+    pub core: EngineCore,
+    /// 平台相关：窗口句柄
+    pub window: Option<&'static Window>,
+    /// 平台相关：GPU 上下文
+    pub ctx: Option<SurfaceContext<'static>>,
     /// 主渲染器实例 (由 RenderPlugin 或 App 初始化)
     pub main_renderer: Option<MainRenderer>,
-    pub exit_requested: bool,
-    pub frame_index: u32,
 }
 
 pub trait EngineTrait {
     fn window(&self) -> &'static Window;
     fn ctx(&self) -> &SurfaceContext<'static>;
     fn ctx_mut(&mut self) -> &mut SurfaceContext<'static>;
-    // input 已移除，使用 world.get_resource::<InputState>() 代替
-    fn world(&self) -> &World;
-    fn world_mut(&mut self) -> &mut World;
-    fn frame_index(&self) -> u32;
-    fn request_exit(&mut self);
-    // main_renderer 通过 Engine 结构体的公开字段直接访问
+    fn core(&self) -> &EngineCore;
+    fn core_mut(&mut self) -> &mut EngineCore;
+    
+    /// 向后兼容：获取 ECS World
+    fn world(&self) -> &World {
+        self.core().world()
+    }
+    
+    /// 向后兼容：获取 ECS World 可变引用
+    fn world_mut(&mut self) -> &mut World {
+        self.core_mut().world_mut()
+    }
+    
+    /// 向后兼容：获取帧索引
+    fn frame_index(&self) -> u32 {
+        self.core().frame_index
+    }
+    
+    /// 向后兼容：请求退出
+    fn request_exit(&mut self) {
+        self.core_mut().request_exit();
+    }
 }
 
-#[path = "EngineTrait_Engine.rs"]
-mod engine_trait_engine;
+impl EngineTrait for Engine {
+    fn window(&self) -> &'static Window {
+        self.window.unwrap()
+    }
+
+    fn ctx(&self) -> &SurfaceContext<'static> {
+        self.ctx.as_ref().unwrap()
+    }
+
+    fn ctx_mut(&mut self) -> &mut SurfaceContext<'static> {
+        self.ctx.as_mut().unwrap()
+    }
+
+    fn core(&self) -> &EngineCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut EngineCore {
+        &mut self.core
+    }
+}
 
 pub trait App {
     /// 返回系统调度器 - 注册需要在引擎中运行的 ECS 系统

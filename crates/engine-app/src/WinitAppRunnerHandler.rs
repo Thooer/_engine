@@ -52,11 +52,11 @@ impl<A: App> ApplicationHandler for AppRunner<A> {
 
         // 运行 setup 系统（依赖 on_start 里 spawn 的实体/资源）
         if !self.setup_done {
-            self.schedule.run_setup(&mut self.engine.world);
+            self.schedule.run_setup(&mut self.engine.core.world);
             self.setup_done = true;
 
             // 初始化帧计数器
-            self.engine.world.insert_resource(FrameCounter::default());
+            self.engine.core.world.insert_resource(FrameCounter::default());
         }
 
         window.request_redraw();
@@ -69,7 +69,7 @@ impl<A: App> ApplicationHandler for AppRunner<A> {
         event: WindowEvent,
     ) {
         // 只更新 ECS Resource 中的 InputState（不再同时更新 Engine.input）
-        if let Some(mut input) = self.engine.world.get_resource_mut::<engine_core::input::InputState>() {
+        if let Some(mut input) = self.engine.core.world.get_resource_mut::<engine_core::input::InputState>() {
             input.on_window_event(&event);
         }
         
@@ -102,18 +102,18 @@ impl<A: App> ApplicationHandler for AppRunner<A> {
                 let dt = self.dt_seconds();
                 
                 // 递增帧计数器（让本帧系统看到最新帧号）
-                if let Some(mut counter) = self.engine.world.get_resource_mut::<FrameCounter>() {
+                if let Some(mut counter) = self.engine.core.world.get_resource_mut::<FrameCounter>() {
                     counter.0 += 1;
                 }
 
                 // 运行每帧更新系统（物理、相机等）
-                self.schedule.run_update(&mut self.engine.world);
+                self.schedule.run_update(&mut self.engine.core.world);
                 
                 self.app.on_update(&mut self.engine, dt);
                 
                 // P2: 自动调用渲染
                 if let Some(mut renderer) = self.engine.main_renderer.take() {
-                    renderer.collect_from_world(&mut self.engine.world);
+                    renderer.collect_from_world(&mut self.engine.core.world);
                     
                     let ctx = self.engine.ctx_mut();
                     let _ = renderer.render(ctx);
@@ -127,7 +127,7 @@ impl<A: App> ApplicationHandler for AppRunner<A> {
                 }
                 
                 self.app.on_render(&mut self.engine);
-                self.engine.frame_index += 1;
+                self.engine.core.frame_index += 1;
             }
             _ => {}
         }
@@ -135,11 +135,11 @@ impl<A: App> ApplicationHandler for AppRunner<A> {
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         // 只更新 ECS Resource 中的 InputState（不再同时更新 Engine.input）
-        if let Some(mut input) = self.engine.world.get_resource_mut::<engine_core::input::InputState>() {
+        if let Some(mut input) = self.engine.core.world.get_resource_mut::<engine_core::input::InputState>() {
             input.next_frame();
         }
 
-        if self.engine.exit_requested {
+        if self.engine.core.exit_requested {
             event_loop.exit();
             return;
         }

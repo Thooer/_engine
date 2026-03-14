@@ -1,12 +1,5 @@
-use super::AppConfig;
+use engine_core::engine::EngineConfig;
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            title: "ToyEngine App",
-            max_frames: None,
-            fixed_dt_seconds: Some(1.0 / 60.0),
-        }
-    }
-}
+// 不再需要为 EngineConfig 实现 Default，因为 engine-core 已经提供了
+// AppConfig 是 EngineConfig 的别名，使用 engine_core::engine::EngineConfig::default()
 

@@ -15,7 +15,12 @@
 use bevy_ecs::prelude::*;
 use glam::{Quat, Vec3};
 use std::path::Path;
-use engine_renderer::graphics::ModelLoaderTrait;
+
+// 场景序列化使用的组件 - 从 engine_core 导入
+use engine_core::ecs::{
+    MeshRenderable, LineRenderable, PointLight, DirectionalLight,
+    CameraController, GridConfig,
+};
 
 // ============================================================================
 // 场景组件定义 (用于序列化)
@@ -171,41 +176,17 @@ impl From<std::io::Error> for SceneError {
 // 公共 API
 // ============================================================================
 
-/// 从 RON 文件加载场景（不含模型加载）
-pub fn load_scene(path: impl AsRef<Path>, world: &mut World) -> Result<(), SceneError> {
-    let path = path.as_ref();
-    
-    // 读取 RON 文件
-    let content = std::fs::read_to_string(path)?;
-    
-    // 反序列化场景
-    let scene: Scene = ron::from_str(&content)
-        .map_err(|e| SceneError::Deserialize(e.to_string()))?;
-    
-    // Spawn 所有实体
-    for entity_data in scene.entities {
-        spawn_entity(entity_data, world, None, None, None)?;
-    }
-    
-    tracing::info!("Scene loaded from: {:?}", path);
-    
-    Ok(())
-}
-
-/// 从 RON 文件加载场景（含模型加载）
+/// 从 RON 文件加载场景
 /// 
 /// # 参数
 /// - `path`: 场景文件路径
 /// - `world`: ECS World
-/// - `device`: wgpu Device（用于创建 GPU 资源）
-/// - `queue`: wgpu Queue（用于提交命令）
-/// - `model_cache`: 模型缓存（用于存储加载的模型）
-pub fn load_scene_with_renderer(
+/// 
+/// 注意：不再需要传入 GPU 设备参数
+/// 渲染器会在需要时自动按需加载模型资源
+pub fn load_scene(
     path: impl AsRef<Path>,
     world: &mut World,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    model_cache: &mut std::collections::HashMap<String, std::sync::Arc<engine_renderer::graphics::GpuModel>>,
 ) -> Result<(), SceneError> {
     let path = path.as_ref();
     
@@ -218,7 +199,7 @@ pub fn load_scene_with_renderer(
     
     // Spawn 所有实体
     for entity_data in scene.entities {
-        spawn_entity(entity_data, world, Some(device), Some(queue), Some(model_cache))?;
+        spawn_entity(entity_data, world)?;
     }
     
     tracing::info!("Scene loaded from: {:?}", path);
@@ -284,7 +265,7 @@ pub fn save_scene(world: &mut World, path: impl AsRef<Path>) -> Result<(), Scene
         }
         
         // 收集 LineRenderable
-        if let Some(line) = world.get::<engine_renderer::ecs::LineRenderable>(entity) {
+        if let Some(line) = world.get::<LineRenderable>(entity) {
             entity_data.line = Some(LineData {
                 start: line.start,
                 end: line.end,
@@ -293,7 +274,7 @@ pub fn save_scene(world: &mut World, path: impl AsRef<Path>) -> Result<(), Scene
         }
         
         // 收集 EcsPointLight
-        if let Some(light) = world.get::<engine_renderer::ecs::EcsPointLight>(entity) {
+        if let Some(light) = world.get::<PointLight>(entity) {
             entity_data.light = Some(LightData {
                 light_type: "point".to_string(),
                 position: Some(light.position),
@@ -305,7 +286,7 @@ pub fn save_scene(world: &mut World, path: impl AsRef<Path>) -> Result<(), Scene
         }
         
         // 收集 EcsDirectionalLight
-        if let Some(light) = world.get::<engine_renderer::ecs::EcsDirectionalLight>(entity) {
+        if let Some(light) = world.get::<DirectionalLight>(entity) {
             entity_data.light = Some(LightData {
                 light_type: "directional".to_string(),
                 position: None,
@@ -317,7 +298,7 @@ pub fn save_scene(world: &mut World, path: impl AsRef<Path>) -> Result<(), Scene
         }
         
         // 收集 CameraController
-        if let Some(controller) = world.get::<engine_renderer::ecs::CameraController>(entity) {
+        if let Some(controller) = world.get::<CameraController>(entity) {
             entity_data.controller = Some(ControllerData {
                 orbit_radius: controller.orbit_radius,
                 orbit_speed: controller.orbit_speed,
@@ -327,7 +308,7 @@ pub fn save_scene(world: &mut World, path: impl AsRef<Path>) -> Result<(), Scene
         }
         
         // 收集 GridConfig
-        if let Some(grid) = world.get::<engine_renderer::ecs::GridConfig>(entity) {
+        if let Some(grid) = world.get::<GridConfig>(entity) {
             entity_data.grid = Some(GridData {
                 range: grid.range,
                 height: grid.height,
@@ -392,15 +373,9 @@ fn collect_physics_data(world: &World, entity: Entity) -> Option<PhysicsData> {
 /// # 参数
 /// - `data`: 场景实体数据
 /// - `world`: ECS World
-/// - `device`: 可选的 wgpu Device（用于加载模型）
-/// - `queue`: 可选的 wgpu Queue（用于加载模型）
-/// - `model_cache`: 可选的模型缓存（用于存储加载的模型）
 fn spawn_entity(
     data: SceneEntity,
     world: &mut World,
-    device: Option<&wgpu::Device>,
-    queue: Option<&wgpu::Queue>,
-    model_cache: Option<&mut std::collections::HashMap<String, std::sync::Arc<engine_renderer::graphics::GpuModel>>>,
 ) -> Result<(), SceneError> {
     let mut commands = world.spawn_empty();
     
@@ -421,32 +396,15 @@ fn spawn_entity(
     }
     
     // Mesh (模型)
+    // 注意：不再在此处同步加载 GPU 模型，而是由渲染器在 render 时按需自动加载
+    // 这样解耦了 scene 和 renderer 的直接依赖
     if let Some(m) = data.mesh {
-        // 确保有渲染资源可用
-        if let (Some(device), Some(queue), Some(cache)) = (device, queue, model_cache) {
-            let model_path = format!("assets/models/{}", m.model);
-            
-            // 尝试加载模型（如果尚未缓存）
-            if !cache.contains_key(&m.model) {
-                match engine_renderer::graphics::ModelLoader::load_gltf(device, queue, &model_path) {
-                    Ok(gpu_model) => {
-                        tracing::info!("Loaded model: {}", m.model);
-                        cache.insert(m.model.clone(), std::sync::Arc::new(gpu_model));
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to load model {}: {}", model_path, e);
-                    }
-                }
-            }
-            
-            // 添加 MeshRenderable 组件
-            commands.insert(engine_renderer::ecs::MeshRenderable {
-                mesh_id: m.model.clone(),
-                material_id: m.material.unwrap_or_else(|| "default".to_string()),
-            });
-        } else {
-            tracing::warn!("Mesh specified but no renderer context available");
-        }
+        // 直接添加 MeshRenderable 组件
+        // 渲染器会在 collect_from_world 时自动加载模型
+        commands.insert(MeshRenderable {
+            mesh_id: m.model.clone(),
+            material_id: m.material.unwrap_or_else(|| "default".to_string()),
+        });
     }
     
     // Camera
@@ -507,7 +465,7 @@ fn spawn_entity(
     
     // LineRenderable
     if let Some(l) = data.line {
-        commands.insert(engine_renderer::ecs::LineRenderable {
+        commands.insert(LineRenderable {
             start: l.start,
             end: l.end,
             color: l.color,
@@ -518,7 +476,7 @@ fn spawn_entity(
     if let Some(l) = data.light {
         match l.light_type.as_str() {
             "point" => {
-                commands.insert(engine_renderer::ecs::EcsPointLight {
+                commands.insert(PointLight {
                     position: l.position.unwrap_or(Vec3::ZERO),
                     range: l.range.unwrap_or(20.0),
                     color: l.color,
@@ -526,7 +484,7 @@ fn spawn_entity(
                 });
             }
             "directional" => {
-                commands.insert(engine_renderer::ecs::EcsDirectionalLight {
+                commands.insert(DirectionalLight {
                     direction: l.direction.unwrap_or(Vec3::new(0.0, -1.0, 0.0)),
                     color: l.color,
                     intensity: l.intensity,
@@ -538,7 +496,7 @@ fn spawn_entity(
     
     // Controller
     if let Some(c) = data.controller {
-        commands.insert(engine_renderer::ecs::CameraController {
+        commands.insert(CameraController {
             orbit_radius: c.orbit_radius,
             orbit_speed: c.orbit_speed,
             height: c.height,
@@ -548,7 +506,7 @@ fn spawn_entity(
     
     // Grid
     if let Some(g) = data.grid {
-        commands.insert(engine_renderer::ecs::GridConfig {
+        commands.insert(GridConfig {
             range: g.range,
             height: g.height,
             color: g.color,

@@ -6,6 +6,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 /// 文件系统统一抽象
+#[allow(dead_code)]
 pub trait FileSystem: Send + Sync + 'static {
     /// 读取整个文本文件为 String
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
@@ -16,6 +17,7 @@ pub trait FileSystem: Send + Sync + 'static {
 
 /// 最简单的本地文件系统实现
 #[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
 pub struct LocalFileSystem {
     pub(crate) root: Option<PathBuf>,
 }

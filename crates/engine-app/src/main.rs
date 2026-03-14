@@ -12,9 +12,10 @@ use std::sync::{Arc, Mutex};
 use engine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait, WasmRuntime};
 use engine_app::plugins::{render_plugin, physics_plugin};
 use engine_app::SystemSchedule;
-use engine_core::input::InputStateExt;
+use engine_core::engine::EngineCoreTrait;
+use engine_core::input::{InputCode, InputStateExt};
+use engine_platform::config::{ProjectConfig, ConfigLoader};
 use engine_renderer::grid::spawn_grid_system;
-use winit::keyboard::KeyCode;
 use rfd::FileDialog;
 use egui::Context;
 
@@ -40,12 +41,12 @@ fn get_engine_config_dir() -> PathBuf {
 
 /// 引擎全局配置
 #[derive(Debug, Clone, Default)]
-struct EngineConfig {
+struct GlobalConfig {
     /// 默认项目路径（相对于引擎根目录）
     default_project: Option<String>,
 }
 
-impl EngineConfig {
+impl GlobalConfig {
     const CONFIG_FILE: &'static str = "config.toml";
 
     /// 从配置文件加载
@@ -95,105 +96,6 @@ impl EngineConfig {
     }
 }
 
-/// 项目配置
-#[derive(Debug, Clone)]
-struct ProjectConfig {
-    /// 项目名称
-    name: String,
-    /// 入口场景路径（相对于项目根目录）
-    scene: String,
-    /// 资源目录
-    assets_dir: String,
-    /// WASM 脚本路径（可选）
-    script: Option<String>,
-    /// 相机控制模式 (orbit, orbital, figure8, spiral)
-    camera_mode: String,
-}
-
-impl Default for ProjectConfig {
-    fn default() -> Self {
-        Self {
-            name: "simple_demo".to_string(),
-            scene: "assets/scenes/main.ron".to_string(),
-            assets_dir: "assets".to_string(),
-            script: None,
-            camera_mode: "orbit".to_string(),
-        }
-    }
-}
-
-impl ProjectConfig {
-    /// 从 project.toml 加载
-    fn load_from_path(path: &PathBuf) -> Self {
-        let config_path = path.join("project.toml");
-
-        if !config_path.exists() {
-            tracing::warn!("project.toml not found at {:?}, using defaults", config_path);
-            return Self::default();
-        }
-
-        // 读取 toml 文件
-        let content = match std::fs::read_to_string(&config_path) {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::warn!("Failed to read project.toml: {}, using defaults", e);
-                return Self::default();
-            }
-        };
-
-        // 解析 toml
-        let config: toml::Value = match content.parse() {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::warn!("Failed to parse project.toml: {}, using defaults", e);
-                return Self::default();
-            }
-        };
-
-        let name = config
-            .get("name")
-            .and_then(|v| v.get("simple_demo"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown")
-            .to_string();
-
-        let scene = config
-            .get("run")
-            .and_then(|v| v.get("scene"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("assets/scenes/main.ron")
-            .to_string();
-
-        let assets_dir = config
-            .get("run")
-            .and_then(|v| v.get("assets_dir"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("assets")
-            .to_string();
-
-        let script = config
-            .get("run")
-            .and_then(|v| v.get("script"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-
-        let camera_mode = config
-            .get("run")
-            .and_then(|v| v.get("camera_mode"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("orbit")
-            .to_string();
-
-        Self {
-            name,
-            scene,
-            assets_dir,
-            script,
-            camera_mode,
-        }
-    }
-}
-
 /// ToyEngine 应用程序
 struct ToyEngineApp {
     project_path: PathBuf,
@@ -204,17 +106,17 @@ struct ToyEngineApp {
 
 impl ToyEngineApp {
     fn new(project_path: PathBuf, shared_state: SharedState) -> Self {
-        let project_config = ProjectConfig::load_from_path(&project_path);
-        tracing::info!("Loaded project: {}", project_config.name);
-        tracing::info!("  scene: {}", project_config.scene);
-        tracing::info!("  assets: {}", project_config.assets_dir);
-        if let Some(ref script) = project_config.script {
+        let project_config = ProjectConfig::load_or_default(&project_path);
+        tracing::info!("Loaded project: {}", project_config.project_name());
+        tracing::info!("  scene: {}", project_config.run.scene);
+        tracing::info!("  assets: {}", project_config.run.assets_dir);
+        if let Some(ref script) = project_config.run.script {
             tracing::info!("  script: {}", script);
         }
 
         // 尝试加载 WASM 脚本
         let mut wasm_runtime: Option<WasmRuntime> = None;
-        if let Some(ref script_path) = project_config.script {
+        if let Some(ref script_path) = project_config.run.script {
             let script_abs = project_path.join(script_path);
             if script_abs.exists() {
                 match WasmRuntime::new() {
@@ -265,11 +167,11 @@ impl ToyEngineApp {
 
         // 2. 重新加载项目配置
         self.project_path = new_project_path.clone();
-        self.project_config = ProjectConfig::load_from_path(&new_project_path);
+        self.project_config = ProjectConfig::load_or_default(&new_project_path);
 
         // 3. 重新加载 WASM 脚本
         self.wasm_runtime = None;
-        if let Some(ref script_path) = self.project_config.script {
+        if let Some(ref script_path) = self.project_config.run.script {
             let script_abs = new_project_path.join(script_path);
             if script_abs.exists() {
                 match WasmRuntime::new() {
@@ -287,7 +189,7 @@ impl ToyEngineApp {
         }
 
         // 4. 重新加载场景和材质
-        let project_assets = resolve_project_assets(&new_project_path, &self.project_config.assets_dir);
+        let project_assets = resolve_project_assets(&new_project_path, &self.project_config.run.assets_dir);
         let scene_path = project_assets.join("scenes/main.ron");
         let materials_path = project_assets.join("materials");
 
@@ -335,7 +237,7 @@ impl App for ToyEngineApp {
         physics_plugin().build(&mut schedule);
 
         // 计算项目 assets 目录的绝对路径
-        let project_assets = resolve_project_assets(&self.project_path, &self.project_config.assets_dir);
+        let project_assets = resolve_project_assets(&self.project_path, &self.project_config.run.assets_dir);
 
         let scene_path = project_assets.join("scenes/main.ron");
         let materials_path = project_assets.join("materials");
@@ -354,7 +256,7 @@ impl App for ToyEngineApp {
 
     fn on_start(&mut self, engine: &mut Engine) {
         // 计算项目 assets 目录的绝对路径
-        let project_assets = resolve_project_assets(&self.project_path, &self.project_config.assets_dir);
+        let project_assets = resolve_project_assets(&self.project_path, &self.project_config.run.assets_dir);
 
         let scene_path = project_assets.join("scenes/main.ron");
         let materials_path = project_assets.join("materials");
@@ -389,13 +291,13 @@ impl App for ToyEngineApp {
 
         // 从 ECS 获取输入状态并构建 mask
         let mut input_mask: u8 = 0;
-        if let Some(ecs_input) = engine.world.get_resource::<engine_core::input::InputState>() {
+        if let Some(ecs_input) = engine.core.world.get_resource::<engine_core::input::InputState>() {
             for digit in 1..=4 {
                 let key = match digit {
-                    1 => KeyCode::Digit1,
-                    2 => KeyCode::Digit2,
-                    3 => KeyCode::Digit3,
-                    4 => KeyCode::Digit4,
+                    1 => InputCode::Key1,
+                    2 => InputCode::Key2,
+                    3 => InputCode::Key3,
+                    4 => InputCode::Key4,
                     _ => continue,
                 };
                 if ecs_input.is_pressed(key) {
@@ -416,8 +318,8 @@ impl App for ToyEngineApp {
                 match runtime.call_camera_func("update", dt_seconds, 0, radius, height, speed, input_mask) {
                     Ok(pos) => {
                         // 更新相机位置
-                        let mut query = engine.world.query::<&mut engine_core::ecs::Camera3D>();
-                        if let Some(mut camera) = query.iter_mut(&mut engine.world).next() {
+                        let mut query = engine.core.world.query::<&mut engine_core::ecs::Camera3D>();
+                        if let Some(mut camera) = query.iter_mut(&mut engine.core.world).next() {
                             camera.position = pos;
                         }
                     }
@@ -438,7 +340,7 @@ fn parse_args() -> (PathBuf, bool) {
     let args: Vec<String> = std::env::args().collect();
 
     // 加载引擎配置
-    let mut config = EngineConfig::load();
+    let mut config = GlobalConfig::load();
 
     // 检查是否是设置默认项目的命令
     for i in 0..args.len() {

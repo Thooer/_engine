@@ -8,7 +8,7 @@ use super::{FrameStartError, MainRenderer, RendererTrait, SurfaceContextTrait};
 use crate::ui::{GuiSystem, GuiSystemTrait, EngineStatsUi, EngineStatsUiTrait};
 use crate::graphics::{
     Texture, TextureLoader,
-    PointLight,
+    PointLight as GpuPointLight,
 };
 use crate::passes::{MeshForwardPass, LinePass, RenderPass};
 use crate::uniforms::{CameraGpuUniform, CameraGpuUniformTrait, LightGpuUniform, LightGpuUniformTrait};
@@ -220,8 +220,7 @@ impl RendererTrait for MainRenderer {
     }
 
     fn collect_from_world(&mut self, world: &mut World) {
-        use engine_core::ecs::Transform;
-        use crate::ecs::MeshRenderable;
+        use engine_core::ecs::{Transform, MeshRenderable, PointLight, LineRenderable};
         use crate::graphics::ModelLoaderTrait;
         
         // 不清空 ui_objects，保留应用在 on_start 中注册的 UI（如 ProjectOpener）
@@ -258,9 +257,9 @@ impl RendererTrait for MainRenderer {
         }
 
         // Query point lights
-        let mut light_query = world.query::<&crate::ecs::EcsPointLight>();
+        let mut light_query = world.query::<&PointLight>();
         for light in light_query.iter(world) {
-            self.point_lights.push(PointLight {
+            self.point_lights.push(GpuPointLight {
                 position: [light.position.x, light.position.y, light.position.z],
                 range: light.range,
                 color: [light.color.x, light.color.y, light.color.z],
@@ -269,7 +268,7 @@ impl RendererTrait for MainRenderer {
         }
 
         // Query lines
-        let mut line_query = world.query::<&crate::ecs::LineRenderable>();
+        let mut line_query = world.query::<&LineRenderable>();
         for line in line_query.iter(world) {
             let vertex = |pos: [f32; 3]| crate::graphics::Vertex {
                 position: pos,
@@ -348,7 +347,7 @@ impl RendererTrait for MainRenderer {
 
         // Hardcode adding a point light
         self.point_lights.clear();
-        self.point_lights.push(PointLight {
+        self.point_lights.push(GpuPointLight {
             position: [2.0, 2.0, 2.0],
             range: 10.0,
             color: [1.0, 1.0, 1.0],

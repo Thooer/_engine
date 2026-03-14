@@ -7,6 +7,7 @@ use crate::PhysicsContext;
 
 /// 碰撞事件类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
 pub enum CollisionEventType {
     Started,
     Stay,
@@ -15,6 +16,7 @@ pub enum CollisionEventType {
 
 /// 碰撞事件
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
 pub struct CollisionEvent {
     pub event_type: CollisionEventType,
     pub body_handle_a: RigidBodyHandle,
@@ -24,6 +26,7 @@ pub struct CollisionEvent {
 }
 
 /// 碰撞事件收集器 Trait
+#[allow(dead_code)]
 pub trait CollisionEventCollectorTrait {
     fn new() -> Self;
 

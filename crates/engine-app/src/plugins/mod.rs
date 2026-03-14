@@ -1,6 +1,12 @@
 //! ToyEngine 插件系统 - 将各模块的系统注册到调度器
 //!
 //! 提供统一的系统注册接口，让应用可以一站式添加所有需要的系统
+//!
+//! 迁移公告：
+//! - 核心插件 trait 已移至 `engine_core::plugins`
+//! - 此模块保留物理和渲染插件的实现
+
+pub use engine_core::plugins::{Plugin, PluginContext, PluginRegistry, ScheduleType};
 
 use bevy_ecs::prelude::World;
 
@@ -12,7 +18,7 @@ use engine_renderer::renderer::{MainRenderer, RendererTrait, SurfaceContextTrait
 use engine_renderer::graphics::{MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait};
 use engine_renderer::uniforms::{CameraGpuUniform, CameraGpuUniformTrait};
 use engine_core::ecs::Camera3D;
-use engine_scene::load_scene_with_renderer;
+use engine_scene::load_scene;
 
 use crate::{SystemSchedule, SystemStage, Engine, EngineTrait};
 
@@ -264,15 +270,10 @@ impl RenderPlugin {
         }
 
         // 3. 加载场景
+        // 注意：不再需要传入 GPU 设备，渲染器会按需自动加载模型
         if let Some(scene_path) = &self.config.scene_path {
             let world = engine.world_mut();
-            if let Err(e) = load_scene_with_renderer(
-                scene_path,
-                world,
-                &device,
-                &queue,
-                &mut renderer.model_cache,
-            ) {
+            if let Err(e) = engine_scene::load_scene(scene_path, world) {
                 tracing::error!("Failed to load scene: {:?}", e);
             }
         }

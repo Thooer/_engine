@@ -5,7 +5,7 @@
 use bevy_ecs::prelude::*;
 use glam::Vec3;
 
-use crate::ecs::{GridConfig, LineRenderable};
+use engine_core::ecs::{GridConfig, LineRenderable};
 
 /// 生成网格地面系统
 /// 

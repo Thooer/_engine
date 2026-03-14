@@ -9,6 +9,7 @@ use glam::Vec3;
 
 struct DefaultOverlapQuery;
 
+#[allow(dead_code)]
 impl OverlapQueryTrait for DefaultOverlapQuery {
     fn overlap_sphere(
         &self,

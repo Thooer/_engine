@@ -10,6 +10,7 @@ members = [
     "crates/engine-physics",
     "crates/engine-events",
     "crates/engine-scene",
+    "crates/engine-platform",
 ]
 exclude = [
     "demos",

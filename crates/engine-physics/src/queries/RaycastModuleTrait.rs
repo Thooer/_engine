@@ -8,6 +8,7 @@ use glam::Vec3;
 
 /// 射线检测结果
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RaycastHit {
     pub point: Vec3,
     pub normal: Vec3,
@@ -17,6 +18,7 @@ pub struct RaycastHit {
 }
 
 /// 射线检测模块 Trait
+#[allow(dead_code)]
 pub trait RaycastModuleTrait {
     fn raycast(
         &self,

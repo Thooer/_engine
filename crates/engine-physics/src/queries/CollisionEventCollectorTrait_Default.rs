@@ -6,6 +6,7 @@ use crate::queries::CollisionEventCollectorTrait::CollisionEventCollectorTrait;
 use crate::queries::CollisionEventCollectorTrait::{CollisionEvent, CollisionEventType};
 use std::collections::HashSet;
 
+#[allow(dead_code)]
 struct DefaultCollisionEventCollector {
     previous_contacts: HashSet<(u32, u32)>,
     current_contacts: HashSet<(u32, u32)>,

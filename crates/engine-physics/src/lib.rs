@@ -6,6 +6,7 @@ use bevy_ecs::prelude::*;
 use bevy_reflect::Reflect;
 use engine_core::ecs::Transform;
 use engine_core::input::{InputState, InputStateExt};
+use engine_platform::input::InputCode;
 use rapier3d::prelude::*;
 use glam::Vec3;
 
@@ -197,8 +198,6 @@ pub fn sync_physics_to_transform_system(
 // 输入响应组件 - 当物体掉落时自动重置
 // ============================================================================
 
-use winit::keyboard::KeyCode;
-
 /// 标记实体在按键触发时重置
 /// 
 /// 配合 `reset_on_keypress_system` 使用
@@ -206,19 +205,19 @@ use winit::keyboard::KeyCode;
 #[derive(Debug, Clone, Copy, Component)]
 pub struct ResetOnKeyPress {
     /// 触发重置的按键
-    pub key: KeyCode,
+    pub key: InputCode,
     /// 重置目标位置
     pub reset_position: glam::Vec3,
 }
 
 impl ResetOnKeyPress {
-    pub fn new(key: KeyCode, reset_position: glam::Vec3) -> Self {
+    pub fn new(key: InputCode, reset_position: glam::Vec3) -> Self {
         Self { key, reset_position }
     }
     
     pub fn space(reset_position: glam::Vec3) -> Self {
         Self { 
-            key: KeyCode::Space, 
+            key: InputCode::KeySpace, 
             reset_position 
         }
     }
@@ -227,7 +226,7 @@ impl ResetOnKeyPress {
 impl Default for ResetOnKeyPress {
     fn default() -> Self {
         Self {
-            key: KeyCode::Space,
+            key: InputCode::KeySpace,
             reset_position: glam::Vec3::new(0.0, 5.0, 0.0),
         }
     }
@@ -250,7 +249,7 @@ pub fn reset_on_keypress_system(world: &mut World) {
     };
     
     // 检查是否按下了空格键
-    if !input.just_pressed(KeyCode::Space) {
+    if !input.just_pressed(InputCode::KeySpace) {
         return;
     }
     

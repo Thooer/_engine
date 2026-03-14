@@ -4,6 +4,17 @@
 
 use bevy_ecs::prelude::Resource;
 
+/// 引擎核心结构
+pub mod engine;
+pub use engine::{EngineConfig, EngineCore, EngineCoreTrait};
+
+/// 子系统抽象
+pub use engine::subsystem::{EngineSubsystem, SubsystemRegistry};
+
+/// 插件系统
+pub mod plugins;
+pub use plugins::{Plugin, PluginContext, PluginRegistry, ScheduleType};
+
 /// 平台层 - 窗口与事件循环
 mod platform;
 

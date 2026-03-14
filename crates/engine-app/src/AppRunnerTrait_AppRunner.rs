@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use bevy_ecs::prelude::World;
+use engine_core::engine::EngineCore;
 use engine_core::input::{InputState, InputStateExt};
 use engine_renderer::renderer::SurfaceSize;
 
@@ -18,17 +19,17 @@ impl<A: App> AppRunnerTrait<A> for AppRunner<A> {
         // 获取系统调度器
         let schedule = app.systems();
 
+        // 创建 EngineCore（需要克隆 config）
+        let core = EngineCore::new(config.clone());
+
         Self {
             config,
             app,
             engine: Engine {
+                core,
                 window: None,
                 ctx: None,
-                // input 已移除，只使用 ECS Resource
-                world,
                 main_renderer: None,
-                exit_requested: false,
-                frame_index: 0,
             },
             last_frame_time: None,
             schedule,

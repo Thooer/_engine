@@ -7,7 +7,7 @@ use glam::Vec3;
 
 use engine_core::ecs::Camera3D;
 use engine_core::FrameCounter;
-use crate::ecs::CameraController;
+use engine_core::ecs::CameraController;
 
 /// 轨道相机系统
 /// 

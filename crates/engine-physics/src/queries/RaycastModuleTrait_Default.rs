@@ -6,6 +6,7 @@ use crate::queries::RaycastModuleTrait::RaycastModuleTrait;
 use crate::queries::RaycastModuleTrait::RaycastHit;
 use glam::Vec3;
 
+#[allow(dead_code)]
 struct DefaultRaycastModule;
 
 impl RaycastModuleTrait for DefaultRaycastModule {

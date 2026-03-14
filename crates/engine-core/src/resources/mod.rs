@@ -66,6 +66,7 @@ pub struct AssetMetadata {
 
 /// 加载请求
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LoadRequest {
     pub handle: AssetHandle,
     pub path: PathBuf,
@@ -80,6 +81,7 @@ pub struct LoadRequest {
 /// - 依赖追踪
 /// - 资源句柄管理
 #[derive(Resource)]
+#[allow(dead_code)]
 pub struct AssetServer {
     /// 资源缓存: Handle -> 资源数据
     cache: HashMap<AssetHandle, Arc<dyn std::any::Any + Send + Sync>>,
@@ -217,6 +219,7 @@ impl AssetConfig {
 
 /// 简单的 2D 网格资源表示（阶段 4 Demo 使用）
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct MeshAsset {
     pub positions: Vec<(f32, f32)>,
     pub indices: Vec<u32>,
@@ -226,12 +229,14 @@ pub struct MeshAsset {
 ///
 /// - 通过 FileSystem 统一读盘
 /// - 针对同一路径做缓存，避免重复加载
+#[allow(dead_code)]
 pub struct AssetManager<F: FileSystem> {
     pub(crate) fs: F,
     pub(crate) meshes: HashMap<PathBuf, Arc<MeshAsset>>,
 }
 
 /// 为 `AssetManager` 提供构造与加载接口的扩展 trait。
+#[allow(dead_code)]
 pub trait AssetManagerExt<F: FileSystem> {
     fn new(fs: F) -> Self
     where

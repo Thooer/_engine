@@ -18,6 +18,9 @@ winit = { workspace = true }
 raw-window-handle = { workspace = true }
 gilrs = { workspace = true }
 
+# 平台抽象
+engine-platform = { path = "../engine-platform" }
+
 # 多线程
 rayon = { workspace = true }
 tokio = { workspace = true }

@@ -3,8 +3,7 @@
 //! 注意：本模块文件禁止出现特定关键字串，所以这里只放类型与 trait 声明。
 
 use bevy_ecs::prelude::World;
-use engine_core::ecs::{Camera3D, Transform};
-use crate::ecs::MeshRenderable;
+use engine_core::ecs::{Camera3D, Transform, MeshRenderable};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use winit::window::Window;
 use winit::event::WindowEvent;

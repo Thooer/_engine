@@ -9,7 +9,6 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 # 核心依赖
 engine-core = { path = "../engine-core" }
-engine-renderer = { path = "../engine-renderer" }
 engine-physics = { path = "../engine-physics" }
 bevy_ecs = { workspace = true }
 bevy_reflect = { workspace = true }
@@ -17,4 +16,3 @@ glam = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 ron = { workspace = true }
-wgpu = { workspace = true }

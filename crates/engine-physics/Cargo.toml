@@ -10,6 +10,7 @@ license = "MIT OR Apache-2.0"
 # 核心依赖
 engine-core = { path = "../engine-core" }
 engine-events = { path = "../engine-events" }
+engine-platform = { path = "../engine-platform" }
 bevy_ecs = { workspace = true }
 bevy_reflect = { workspace = true }
 glam = { workspace = true }

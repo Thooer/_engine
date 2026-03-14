@@ -1491,6 +1491,7 @@ dependencies = [
  "egui",
  "engine-core",
  "engine-physics",
+ "engine-platform",
  "engine-renderer",
  "engine-scene",
  "glam 0.30.10",
@@ -1512,6 +1513,7 @@ dependencies = [
  "bevy_reflect",
  "bincode",
  "crossbeam-channel",
+ "engine-platform",
  "gilrs",
  "glam 0.30.10",
  "notify",
@@ -1547,9 +1549,23 @@ dependencies = [
  "bevy_reflect",
  "engine-core",
  "engine-events",
+ "engine-platform",
  "glam 0.30.10",
  "rapier2d",
  "rapier3d",
+ "tracing",
+ "winit",
+]
+
+[[package]]
+name = "engine-platform"
+version = "0.1.0"
+dependencies = [
+ "bevy_ecs",
+ "raw-window-handle",
+ "serde",
+ "thiserror 2.0.18",
+ "toml",
  "tracing",
  "winit",
 ]
@@ -1593,12 +1609,10 @@ dependencies = [
  "bevy_reflect",
  "engine-core",
  "engine-physics",
- "engine-renderer",
  "glam 0.30.10",
  "ron",
  "serde",
  "tracing",
- "wgpu",
 ]
 
 [[package]]
