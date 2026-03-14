@@ -14,7 +14,52 @@ impl GuiSystemTrait for GuiSystem {
         msaa_samples: u32,
         window: &Window,
     ) -> Self {
-        let context = Context::default();
+        // 创建支持中文的 Context
+        let mut context = Context::default();
+
+        // 尝试加载中文字体
+        let mut fonts = egui::FontDefinitions::default();
+
+        // 尝试多个可能的中文字体
+        let font_paths = [
+            "C:\\Windows\\Fonts\\msyh.ttc",   // 微软雅黑
+            "C:\\Windows\\Fonts\\simsun.ttc", // 宋体
+            "C:\\Windows\\Fonts\\simhei.ttf", // 黑体
+        ];
+
+        for font_path in font_paths {
+            if std::path::Path::new(font_path).exists() {
+                if let Ok(font_data) = std::fs::read(font_path) {
+                    let font_name = std::path::Path::new(font_path)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("chinese")
+                        .to_string();
+
+                    fonts.font_data.insert(
+                        font_name.clone(),
+                        std::sync::Arc::new(egui::FontData::from_owned(font_data)),
+                    );
+
+                    fonts
+                        .families
+                        .entry(egui::FontFamily::Proportional)
+                        .or_default()
+                        .insert(0, font_name.clone());
+
+                    fonts
+                        .families
+                        .entry(egui::FontFamily::Monospace)
+                        .or_default()
+                        .insert(0, font_name.clone());
+
+                    tracing::info!("Loaded Chinese font: {}", font_path);
+                    break;
+                }
+            }
+        }
+
+        context.set_fonts(fonts);
         let viewport_id = context.viewport_id();
         
         let state = State::new(

@@ -1,0 +1,23 @@
+(
+    entities: [
+        // 相机实体
+        (
+            name: Some("Camera"),
+            transform: None,
+            renderable: None,
+            mesh: None,
+            camera: Some((
+                camera_type: "3d",
+                position: (0.0, 5.0, 10.0),
+                forward: Some((0.0, -0.3, -1.0)),
+                zoom: None,
+                priority: 0,
+            )),
+            physics: None,
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+    ],
+)

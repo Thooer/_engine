@@ -1,0 +1,12 @@
+[name]
+mc = "MC Demo"
+
+[project]
+version = "0.1.0"
+
+[run]
+# 入口场景
+scene = "assets/scenes/main.ron"
+
+# 项目资源根目录
+assets_dir = "assets"

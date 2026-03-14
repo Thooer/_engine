@@ -35,3 +35,15 @@ mod camera;
 /// 帧计数器资源 - 用于需要在每帧获取帧号的系统
 #[derive(Resource, Default)]
 pub struct FrameCounter(pub u32);
+
+/// 待加载项目路径 - UI 选择新项目后通过此资源触发热重载
+#[derive(Resource)]
+pub struct PendingProjectReload {
+    pub path: std::path::PathBuf,
+}
+
+impl PendingProjectReload {
+    pub fn new(path: std::path::PathBuf) -> Self {
+        Self { path }
+    }
+}

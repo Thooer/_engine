@@ -1,0 +1,5 @@
+# ToyEngine 全局配置
+# 此文件由引擎自动管理
+
+[default]
+project = "./mc"

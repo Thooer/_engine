@@ -13,7 +13,7 @@ pub mod uniforms;
 mod materials;
 
 /// UI 模块
-mod ui;
+pub mod ui;
 
 /// 通用图形基础
 pub mod graphics;

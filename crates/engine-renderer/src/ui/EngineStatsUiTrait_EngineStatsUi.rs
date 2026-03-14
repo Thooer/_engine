@@ -8,6 +8,10 @@ impl EngineStatsUiTrait for EngineStatsUi {
 }
 
 impl UiComponent for EngineStatsUi {
+    fn id(&self) -> &'static str {
+        "engine_stats"
+    }
+
     fn render(&mut self, ctx: &Context) {
         egui::Window::new("Engine Stats")
             .resizable(true)

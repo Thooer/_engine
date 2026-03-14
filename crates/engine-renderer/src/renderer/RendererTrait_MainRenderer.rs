@@ -224,7 +224,7 @@ impl RendererTrait for MainRenderer {
         use crate::ecs::MeshRenderable;
         use crate::graphics::ModelLoaderTrait;
         
-        self.ui_objects.clear();
+        // 不清空 ui_objects，保留应用在 on_start 中注册的 UI（如 ProjectOpener）
         self.lines.clear();
         self.point_lights.clear();
 
@@ -281,8 +281,11 @@ impl RendererTrait for MainRenderer {
             self.lines.push(vertex([line.end.x, line.end.y, line.end.z]));
         }
 
-        // Always add UI
-        self.ui_objects.push(Box::new(EngineStatsUi::new()));
+        // 确保默认 EngineStatsUi 存在，且不覆盖应用注册的 UI（如 ProjectOpener）
+        let has_engine_stats = self.ui_objects.iter().any(|c| c.id() == "engine_stats");
+        if !has_engine_stats {
+            self.ui_objects.insert(0, Box::new(EngineStatsUi::new()));
+        }
 
         // Always add axis gizmo
         let mut add_line = |start: [f32; 3], end: [f32; 3], color: [f32; 4]| {
@@ -306,7 +309,7 @@ impl RendererTrait for MainRenderer {
 
     fn collect_render_objects(&mut self) {
         self.model_objects.clear();
-        self.ui_objects.clear();
+        // 不清空 ui_objects，保留应用注册的 UI
         self.lines.clear();
 
         // Hardcode adding monkey at origin
@@ -322,9 +325,10 @@ impl RendererTrait for MainRenderer {
             ));
         }
 
-        // Hardcode adding UI components
-        // In a real ECS system, this would query UI entities
-        self.ui_objects.push(Box::new(EngineStatsUi::new()));
+        let has_engine_stats = self.ui_objects.iter().any(|c| c.id() == "engine_stats");
+        if !has_engine_stats {
+            self.ui_objects.insert(0, Box::new(EngineStatsUi::new()));
+        }
 
         // Hardcode adding lines (Axis Gizmo)
         let mut add_line = |start: [f32; 3], end: [f32; 3], color: [f32; 4]| {

@@ -7,6 +7,10 @@ use winit::event::WindowEvent;
 
 pub trait UiComponent: Send + Sync {
     fn render(&mut self, ctx: &Context);
+    /// 用于去重/识别，默认 "custom"
+    fn id(&self) -> &'static str {
+        "custom"
+    }
 }
 
 pub struct GuiSystem {
