@@ -7,11 +7,12 @@
 
 use std::collections::HashSet;
 
+use bevy_ecs::prelude::Resource;
 use winit::event::WindowEvent;
 use winit::keyboard::KeyCode;
 
 /// 键盘输入状态（单帧）
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Resource)]
 pub struct InputState {
     /// 当前按下中的按键集合
     pub(crate) pressed: HashSet<KeyCode>,

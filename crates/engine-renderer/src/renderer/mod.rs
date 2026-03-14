@@ -2,7 +2,9 @@
 //!
 //! 注意：本模块文件禁止出现特定关键字串，所以这里只放类型与 trait 声明。
 
+use bevy_ecs::prelude::World;
 use engine_core::ecs::{Camera3D, Transform};
+use crate::ecs::MeshRenderable;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use winit::window::Window;
 use winit::event::WindowEvent;
@@ -185,6 +187,11 @@ pub struct DefaultSurfaceContextNew;
 pub struct MainRenderer {
     pub surface_size: SurfaceSize,
     
+    // GPU resources (kept for auto-loading models)
+    pub(crate) device: wgpu::Device,
+    pub(crate) queue: wgpu::Queue,
+    pub(crate) config: wgpu::SurfaceConfiguration,
+    
     // Resource caches
     pub model_cache: HashMap<String, Arc<GpuModel>>,
     pub mesh_cache: HashMap<String, Arc<GpuMesh>>,
@@ -202,9 +209,15 @@ pub struct MainRenderer {
     // Render Objects
     pub direct_lights: Vec<DirectLight>,
     pub point_lights: Vec<PointLight>,
-    pub model_objects: Vec<(Arc<GpuModel>, Transform)>,
+    pub model_objects: Vec<(Arc<GpuModel>, Transform, Option<String>)>, // (model, transform, material_override)
     pub ui_objects: Vec<Box<dyn crate::ui::UiComponent>>,
     pub lines: Vec<crate::graphics::Vertex>,
+    
+    // Dynamic GPU buffers (reused each frame to avoid per-draw allocations)
+    pub(crate) instance_buffer: Option<wgpu::Buffer>,
+    pub(crate) instance_buffer_capacity: usize,
+    pub(crate) line_buffer: Option<wgpu::Buffer>,
+    pub(crate) line_buffer_capacity: usize,
     
     // Frame (Group 0)
     pub frame_bind_group: wgpu::BindGroup,
@@ -224,7 +237,13 @@ pub trait RendererTrait {
     fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C, window: &'static Window) -> Self;
     fn resize<C: SurfaceContextTrait + ?Sized>(&mut self, ctx: &C);
     fn handle_event(&mut self, window: &Window, event: &WindowEvent) -> bool { false }
+
+    /// 从 ECS World 收集渲染对象
+    fn collect_from_world(&mut self, world: &mut World);
+
+    /// 渲染 (保留用于兼容)
     fn collect_render_objects(&mut self);
+
     fn render<C: SurfaceContextTrait>(&mut self, ctx: &mut C) -> Result<(), FrameStartError>;
 }
 

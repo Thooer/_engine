@@ -1,6 +1,6 @@
 use super::{Engine, EngineTrait};
-use engine_core::input::InputState;
-use engine_renderer::renderer::SurfaceContext;
+use bevy_ecs::prelude::World;
+use engine_renderer::renderer::{MainRenderer, SurfaceContext};
 use winit::window::Window;
 
 impl EngineTrait for Engine {
@@ -20,8 +20,14 @@ impl EngineTrait for Engine {
             .expect("Engine SurfaceContext not initialized")
     }
 
-    fn input(&self) -> &InputState {
-        &self.input
+    // input 已移除，使用 world.get_resource::<InputState>() 代替
+
+    fn world(&self) -> &World {
+        &self.world
+    }
+
+    fn world_mut(&mut self) -> &mut World {
+        &mut self.world
     }
 
     fn frame_index(&self) -> u32 {

@@ -4,9 +4,9 @@
 
 use std::time::Instant;
 
-use engine_core::input::InputState;
+use bevy_ecs::prelude::World;
 use engine_renderer::renderer::{
-    DefaultSurfaceContextNew, SurfaceContext, SurfaceContextNew, SurfaceContextTrait, SurfaceSize,
+    DefaultSurfaceContextNew, MainRenderer, SurfaceContext, SurfaceContextNew, SurfaceContextTrait, SurfaceSize,
 };
 use winit::{
     application::ApplicationHandler,
@@ -14,6 +14,10 @@ use winit::{
     event_loop::{ActiveEventLoop, EventLoop},
     window::Window,
 };
+
+mod schedule;
+pub use schedule::{SystemSchedule, SystemFn, SystemStage};
+pub use engine_core::FrameCounter;
 
 #[derive(Clone, Copy, Debug)]
 pub struct AppConfig {
@@ -25,29 +29,60 @@ pub struct AppConfig {
 pub struct Engine {
     window: Option<&'static Window>,
     ctx: Option<SurfaceContext<'static>>,
-    input: InputState,
-    exit_requested: bool,
-    frame_index: u32,
+    // input 已移除，只使用 ECS Resource: world.get_resource::<InputState>()
+    pub world: World,
+    /// 主渲染器实例 (由 RenderPlugin 或 App 初始化)
+    pub main_renderer: Option<MainRenderer>,
+    pub exit_requested: bool,
+    pub frame_index: u32,
 }
 
 pub trait EngineTrait {
     fn window(&self) -> &'static Window;
     fn ctx(&self) -> &SurfaceContext<'static>;
     fn ctx_mut(&mut self) -> &mut SurfaceContext<'static>;
-    fn input(&self) -> &InputState;
+    // input 已移除，使用 world.get_resource::<InputState>() 代替
+    fn world(&self) -> &World;
+    fn world_mut(&mut self) -> &mut World;
     fn frame_index(&self) -> u32;
     fn request_exit(&mut self);
+    // main_renderer 通过 Engine 结构体的公开字段直接访问
 }
 
 #[path = "EngineTrait_Engine.rs"]
 mod engine_trait_engine;
 
 pub trait App {
+    /// 返回系统调度器 - 注册需要在引擎中运行的 ECS 系统
+    /// 
+    /// 默认返回空调度器，子类可以 override 添加系统
+    fn systems(&mut self) -> SystemSchedule {
+        SystemSchedule::new()
+    }
+
+    /// 配置系统调度器（在 on_start 之后调用）
+    /// 
+    /// 子类可以 override 此方法添加需要渲染器上下文的系统
+    fn configure_schedule(&mut self, _schedule: &mut SystemSchedule) {}
+
     fn on_start(&mut self, _engine: &mut Engine) {}
+    
+    /// 窗口事件回调
     fn on_window_event(&mut self, _engine: &mut Engine, _event: &WindowEvent) {}
+    
     fn on_resize(&mut self, _engine: &mut Engine, _new_size: SurfaceSize) {}
+    
     fn on_update(&mut self, _engine: &mut Engine, _dt_seconds: f32) {}
-    fn on_render(&mut self, _engine: &mut Engine) {}
+    
+    /// 渲染回调
+    /// 
+    /// 默认实现：自动调用渲染（需要 App 自行存储渲染器）
+    fn on_render(&mut self, _engine: &mut Engine) {
+        // 默认空实现，由子类实现
+    }
+
+    #[allow(unused_variables)]
+    fn configure_ecs(&mut self, world: &mut World) {}
 }
 
 pub struct AppRunner<A: App> {
@@ -55,6 +90,10 @@ pub struct AppRunner<A: App> {
     app: A,
     engine: Engine,
     last_frame_time: Option<Instant>,
+    /// 系统调度器 - 从 app 中获取
+    schedule: SystemSchedule,
+    /// 标记 setup 系统是否已运行
+    setup_done: bool,
 }
 
 pub trait AppRunnerTrait<A: App> {
@@ -79,4 +118,10 @@ mod application_handler_app_runner;
 
 #[path = "RunAppTrait_RunApp.rs"]
 mod run_app_trait_run_app;
+
+/// 插件系统
+pub mod plugins;
+
+mod wasm_runtime;
+pub use wasm_runtime::WasmRuntime;
 

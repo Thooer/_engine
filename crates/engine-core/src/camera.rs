@@ -15,7 +15,16 @@ use crate::input::{InputState, InputStateExt};
 /// - Space / Ctrl: 沿 +Y / -Y 方向移动
 ///
 /// 该函数假定世界中最多只有一个 `Camera3D`，并将移动应用到该相机。
-pub fn camera3d_fly_wasd(world: &mut World, input: &InputState, dt: f32, speed: f32) {
+/// 
+/// 注意：现在从 World 中获取 InputState Resource，_input 参数保留用于兼容但已废弃
+#[allow(unused_variables)]
+pub fn camera3d_fly_wasd(world: &mut World, _input: &InputState, dt: f32, speed: f32) {
+    // 从 ECS World 获取 InputState
+    let input = match world.get_resource::<InputState>() {
+        Some(i) => i,
+        None => return,
+    };
+
     let mut dir = Vec3::ZERO;
 
     if input.is_pressed(KeyCode::KeyW) {

@@ -171,20 +171,27 @@ impl EcsSceneDemoAppTrait for EcsSceneDemoApp {
     /// 简单 2D 相机控制：WASD 平移
     fn update_camera(&mut self, engine: &Engine, dt: f32) {
         use winit::keyboard::KeyCode;
+        use toyengine_core::input::InputState;
 
         let speed = 1.0; // 世界单位 / 秒
 
+        // 从 ECS World 获取 InputState
+        let input = match engine.world().get_resource::<InputState>() {
+            Some(i) => i,
+            None => return,
+        };
+
         let mut dir = Vec3::ZERO;
-        if engine.input().is_pressed(KeyCode::KeyW) {
+        if input.is_pressed(KeyCode::KeyW) {
             dir.y += 1.0;
         }
-        if engine.input().is_pressed(KeyCode::KeyS) {
+        if input.is_pressed(KeyCode::KeyS) {
             dir.y -= 1.0;
         }
-        if engine.input().is_pressed(KeyCode::KeyA) {
+        if input.is_pressed(KeyCode::KeyA) {
             dir.x -= 1.0;
         }
-        if engine.input().is_pressed(KeyCode::KeyD) {
+        if input.is_pressed(KeyCode::KeyD) {
             dir.x += 1.0;
         }
 

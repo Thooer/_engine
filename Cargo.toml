@@ -1,24 +1,6 @@
-[package]
-name = "engine"
-version = "0.1.0"
-edition = "2021"
-authors = ["Your Team"]
-description = "A modern game engine built with Rust"
-license = "MIT OR Apache-2.0"
-
-[dependencies]
-# 核心模块
-engine-core = { path = "crates/engine-core" }
-engine-renderer = { path = "crates/engine-renderer" }
-
-# 日志
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-
-[features]
-default = []
-# 统一开关：`cargo run --features tracy`
-tracy = ["engine-renderer/tracy"]
+# ToyEngine - 游戏引擎 Workspace
+# 
+# 不包含任何可直接运行的 binary/package，仅作为 crates 集合
 
 [workspace]
 members = [
@@ -27,12 +9,17 @@ members = [
     "crates/engine-app",
     "crates/engine-physics",
     "crates/engine-events",
+    "crates/engine-scene",
+]
+exclude = [
+    "demos",
 ]
 # 未来可以添加更多子 crate
 
 [workspace.dependencies]
 # 核心依赖
 bevy_ecs = "0.18"
+bevy = "0.18"  # 用于反射和类型注册
 glam = "0.30"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -66,6 +53,7 @@ image = "0.25"
 gltf = "1.4"
 ktx2 = "0.4"
 ddsfile = "0.5"
+uuid = { version = "1.0", features = ["v4", "serde"] }
 
 # 文件系统与热重载
 notify = "6.1"
@@ -83,7 +71,7 @@ tracy-client = "0.18"
 bytemuck = { version = "1.16", features = ["derive"] }
 
 # 反射（如果需要）
-bevy_reflect = "0.18"
+bevy_reflect = { version = "0.18", features = ["glam"] }
 
 # 事件系统（如果需要）
 crossbeam-channel = "0.5"

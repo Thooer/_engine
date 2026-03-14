@@ -3,7 +3,7 @@
 use rapier3d::prelude::*;
 use crate::PhysicsContext;
 use crate::queries::RaycastModuleTrait::RaycastModuleTrait;
-use crate::queries::RaycastHit;
+use crate::queries::RaycastModuleTrait::RaycastHit;
 use glam::Vec3;
 
 struct DefaultRaycastModule;

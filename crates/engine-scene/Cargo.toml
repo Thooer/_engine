@@ -1,0 +1,20 @@
+[package]
+name = "engine-scene"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Team"]
+description = "ToyEngine 场景序列化与加载"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# 核心依赖
+engine-core = { path = "../engine-core" }
+engine-renderer = { path = "../engine-renderer" }
+engine-physics = { path = "../engine-physics" }
+bevy_ecs = { workspace = true }
+bevy_reflect = { workspace = true }
+glam = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+ron = { workspace = true }
+wgpu = { workspace = true }

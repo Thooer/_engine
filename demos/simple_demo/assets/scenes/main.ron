@@ -1,0 +1,235 @@
+(
+    entities: [
+        // 相机实体（带轨道控制器）
+        (
+            name: Some("Camera"),
+            transform: None,
+            renderable: None,
+            mesh: None,
+            camera: Some((
+                camera_type: "3d",
+                position: (10.0, 6.0, 0.0),
+                forward: Some((-1.0, -0.5, 0.0)),
+                zoom: None,
+                priority: 0,
+            )),
+            physics: None,
+            line: None,
+            light: None,
+            controller: Some((
+                orbit_radius: 10.0,
+                orbit_speed: 0.0105,
+                height: 6.0,
+                phase_offset: 0.0,
+            )),
+            grid: None,
+        ),
+        
+        // 地面网格
+        (
+            name: Some("Grid"),
+            transform: None,
+            renderable: None,
+            mesh: None,
+            camera: None,
+            physics: None,
+            line: None,
+            light: None,
+            controller: None,
+            grid: Some((
+                range: 5,
+                height: 0.0,
+                color: (0.4, 0.4, 0.4, 1.0),
+            )),
+        ),
+        
+        // 坐标轴 - X轴（红色）
+        (
+            name: Some("AxisX"),
+            transform: Some((
+                translation: (0.0, 0.0, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (1.0, 1.0, 1.0),
+            )),
+            renderable: None,
+            mesh: None,
+            camera: None,
+            physics: None,
+            line: Some((
+                start: (0.0, 0.0, 0.0),
+                end: (3.0, 0.0, 0.0),
+                color: (1.0, 0.0, 0.0, 1.0),
+            )),
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+        
+        // 坐标轴 - Y轴（绿色）
+        (
+            name: Some("AxisY"),
+            transform: Some((
+                translation: (0.0, 0.0, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (1.0, 1.0, 1.0),
+            )),
+            renderable: None,
+            mesh: None,
+            camera: None,
+            physics: None,
+            line: Some((
+                start: (0.0, 0.0, 0.0),
+                end: (0.0, 3.0, 0.0),
+                color: (0.0, 1.0, 0.0, 1.0),
+            )),
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+        
+        // 坐标轴 - Z轴（蓝色）
+        (
+            name: Some("AxisZ"),
+            transform: Some((
+                translation: (0.0, 0.0, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (1.0, 1.0, 1.0),
+            )),
+            renderable: None,
+            mesh: None,
+            camera: None,
+            physics: None,
+            line: Some((
+                start: (0.0, 0.0, 0.0),
+                end: (0.0, 0.0, 3.0),
+                color: (0.0, 0.0, 1.0, 1.0),
+            )),
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+        
+        // 地面物理体（静态）
+        (
+            name: Some("Ground"),
+            transform: Some((
+                translation: (0.0, -0.5, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (10.0, 1.0, 10.0),
+            )),
+            renderable: None,
+            mesh: None,
+            camera: None,
+            physics: Some((
+                body_type: "fixed",
+                collider_shape: "cuboid",
+                mass: None,
+                friction: 0.5,
+                restitution: 0.3,
+                density: 1.0,
+                half_extents: Some((5.0, 0.5, 5.0)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+        
+        // 下落立方体（动态）
+        (
+            name: Some("Cube"),
+            transform: Some((
+                translation: (-1.0, 4.0, 0.0),
+                rotation: (0.0, 0.0, 0.1, 0.995),
+                scale: (1.0, 1.0, 1.0),
+            )),
+            renderable: None,
+            mesh: None,
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "cuboid",
+                mass: Some(1.0),
+                friction: 0.5,
+                restitution: 0.5,
+                density: 1.0,
+                half_extents: Some((0.5, 0.5, 0.5)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+        
+        // 下落球体（动态）
+        (
+            name: Some("Sphere"),
+            transform: Some((
+                translation: (1.0, 6.0, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (1.0, 1.0, 1.0),
+            )),
+            renderable: None,
+            mesh: None,
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(1.0),
+                friction: 0.5,
+                restitution: 0.7,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.5),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+        
+        // 点光源
+        (
+            name: Some("PointLight"),
+            transform: None,
+            renderable: None,
+            mesh: None,
+            camera: None,
+            physics: None,
+            line: None,
+            light: Some((
+                light_type: "point",
+                position: Some((2.0, 5.0, 2.0)),
+                direction: None,
+                range: Some(20.0),
+                color: (1.0, 1.0, 1.0),
+                intensity: 2.0,
+            )),
+            controller: None,
+            grid: None,
+        ),
+        
+        // 猴子模型
+        (
+            name: Some("Monkey"),
+            transform: Some((
+                translation: (0.0, 0.5, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (1.0, 1.0, 1.0),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "monkey.glb",
+                material: None,
+            )),
+            camera: None,
+            physics: None,
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+    ],
+)

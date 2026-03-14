@@ -4,6 +4,7 @@
 
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 use serde::Deserialize;
 use glam::Vec3;
 
@@ -139,10 +140,13 @@ pub trait ShaderTrait {
 /// 着色器加载器
 pub struct ShaderLoader {
     pub root_dir: PathBuf,
+    /// 内置 shader (key: shader identifier like "builtin/basic_diffuse")
+    builtin_shaders: std::sync::Arc<std::sync::RwLock<HashMap<String, String>>>,
 }
 
 pub trait ShaderLoaderTrait {
     fn new(assets_dir: impl AsRef<Path>) -> Self;
+    fn register_builtin(&self, identifier: &str, source: &str);
     fn load_shader_source(&self, shader_path: &str) -> Result<String, String>;
     fn create_shader_module(
         &self, 
@@ -262,7 +266,8 @@ mod gpu_texture_loader;
 /// Pipeline 生成器
 pub trait PipelineGeneratorTrait {
     fn new(assets_dir: impl AsRef<Path>) -> Self;
-    
+    fn register_builtin_shaders(&mut self);
+
     fn scan_and_generate_pipelines(
         &self,
         device: &wgpu::Device,

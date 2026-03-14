@@ -27,7 +27,9 @@ impl CameraGpuUniformTrait for CameraGpuUniform {
             0.1,
             100.0,
         );
-        let view = Mat4::look_at_rh(camera.position, camera.position + camera.forward, Vec3::Y);
+        // 相机朝向原点
+        let target = Vec3::ZERO;
+        let view = Mat4::look_at_rh(camera.position, target, Vec3::Y);
         
         let camera_uniform_data = CameraUniform {
             view_proj: (projection * view).to_cols_array_2d(),

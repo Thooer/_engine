@@ -3,24 +3,37 @@
 //! ECS 风格的 Rapier 封装，提供高性能物理模拟
 
 use bevy_ecs::prelude::*;
-use engine_core::ecs::*;
+use bevy_reflect::Reflect;
+use engine_core::ecs::Transform;
+use engine_core::input::{InputState, InputStateExt};
 use rapier3d::prelude::*;
 use glam::Vec3;
+
+/// 统一物理更新辅助模块
+pub mod physics_world;
 
 // ============================================================================
 // 物理组件 (Physics Components)
 // ============================================================================
 
 /// 刚体类型
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[reflect(Component)]
 pub enum RigidBodyType {
     Dynamic,
     Fixed,
     KinematicPositionBased,
 }
 
+impl Default for RigidBodyType {
+    fn default() -> Self {
+        Self::Dynamic
+    }
+}
+
 /// 刚体组件 - 与 Rapier 物理引擎集成
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub struct RigidBody {
     pub body_type: RigidBodyType,
     pub additional_mass: Option<f32>,
@@ -30,15 +43,36 @@ pub struct RigidBody {
     pub ccd_enabled: bool,
 }
 
+impl Default for RigidBody {
+    fn default() -> Self {
+        Self {
+            body_type: RigidBodyType::Dynamic,
+            additional_mass: None,
+            linear_damping: 0.0,
+            angular_damping: 0.0,
+            can_sleep: true,
+            ccd_enabled: false,
+        }
+    }
+}
+
 /// 碰撞体类型
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub enum ColliderShape {
     Ball { radius: f32 },
     Cuboid { half_extents: Vec3 },
 }
 
+impl Default for ColliderShape {
+    fn default() -> Self {
+        Self::Ball { radius: 0.5 }
+    }
+}
+
 /// 碰撞体组件
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Collider {
     pub shape: ColliderShape,
     pub friction: f32,
@@ -47,21 +81,35 @@ pub struct Collider {
     pub sensor: bool,
 }
 
+impl Default for Collider {
+    fn default() -> Self {
+        Self {
+            shape: ColliderShape::default(),
+            friction: 0.5,
+            restitution: 0.3,
+            density: 1.0,
+            sensor: false,
+        }
+    }
+}
+
 /// 速度组件
-#[derive(Component, Clone, Debug, Default)]
+#[derive(Component, Clone, Debug, Default, Reflect)]
+#[reflect(Component)]
 pub struct Velocity {
     pub linvel: Vec3,
     pub angvel: Vec3,
 }
 
 /// 外力组件
-#[derive(Component, Clone, Debug, Default)]
+#[derive(Component, Clone, Debug, Default, Reflect)]
+#[reflect(Component)]
 pub struct ExternalForce {
     pub force: Vec3,
     pub torque: Vec3,
 }
 
-/// 内部组件 - 存储 Rapier 句柄
+/// 内部组件 - 存储 Rapier 句柄（不需要反射）
 #[derive(Component, Clone, Copy, Debug)]
 pub struct PhysicsHandle {
     pub rigid_body_handle: RigidBodyHandle,
@@ -143,6 +191,98 @@ pub fn sync_physics_to_transform_system(
     mut transform_query: Query<(&PhysicsHandle, &mut Transform)>,
 ) {
     include!("internal/sync_physics_to_transform_system.rs");
+}
+
+// ============================================================================
+// 输入响应组件 - 当物体掉落时自动重置
+// ============================================================================
+
+use winit::keyboard::KeyCode;
+
+/// 标记实体在按键触发时重置
+/// 
+/// 配合 `reset_on_keypress_system` 使用
+/// 当指定按键被按下时，重置所有标记的实体
+#[derive(Debug, Clone, Copy, Component)]
+pub struct ResetOnKeyPress {
+    /// 触发重置的按键
+    pub key: KeyCode,
+    /// 重置目标位置
+    pub reset_position: glam::Vec3,
+}
+
+impl ResetOnKeyPress {
+    pub fn new(key: KeyCode, reset_position: glam::Vec3) -> Self {
+        Self { key, reset_position }
+    }
+    
+    pub fn space(reset_position: glam::Vec3) -> Self {
+        Self { 
+            key: KeyCode::Space, 
+            reset_position 
+        }
+    }
+}
+
+impl Default for ResetOnKeyPress {
+    fn default() -> Self {
+        Self {
+            key: KeyCode::Space,
+            reset_position: glam::Vec3::new(0.0, 5.0, 0.0),
+        }
+    }
+}
+
+/// 按键触发重置系统
+/// 
+/// # 使用方式
+/// ```rust
+/// // 1. 给需要重置的实体添加 ResetOnKeyPress 组件
+/// commands.entity(entity).insert(ResetOnKeyPress::default());
+/// 
+/// // 2. 在系统中注册
+/// schedule.add_system(reset_on_keypress_system, SystemStage::Update);
+/// ```
+pub fn reset_on_keypress_system(world: &mut World) {
+    // 获取输入状态
+    let Some(input) = world.get_resource::<InputState>() else {
+        return;
+    };
+    
+    // 检查是否按下了空格键
+    if !input.just_pressed(KeyCode::Space) {
+        return;
+    }
+    
+    // 收集需要重置的 handle
+    let handles: Vec<_> = {
+        let mut query = world.query::<&PhysicsHandle>();
+        query.iter(world).map(|h| h.rigid_body_handle).collect()
+    };
+    
+    if handles.is_empty() {
+        return;
+    }
+    
+    // 重置 Rapier 物理状态
+    if let Some(mut ctx) = world.get_resource_mut::<PhysicsContext>() {
+        for &h in &handles {
+            if let Some(body) = ctx.rigid_body_set.get_mut(h) {
+                body.set_translation(glam::Vec3::new(0.0, 5.0, 0.0), true);
+                body.set_linvel(glam::Vec3::ZERO, true);
+                body.set_angvel(glam::Vec3::ZERO, true);
+            }
+        }
+    }
+    
+    // 重置 ECS Transform (只重置掉落到 threshold 以下的)
+    let threshold = -1.0;
+    let mut query = world.query::<(&PhysicsHandle, &mut Transform)>();
+    for (handle, mut transform) in query.iter_mut(world) {
+        if handles.contains(&handle.rigid_body_handle) && transform.translation.y < threshold {
+            transform.translation = glam::Vec3::new(0.0, 5.0, 0.0);
+        }
+    }
 }
 
 // ============================================================================

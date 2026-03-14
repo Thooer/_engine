@@ -16,10 +16,144 @@ use crate::graphics::PipelineState;
 impl PipelineGeneratorTrait for PipelineGenerator {
     fn new(assets_dir: impl AsRef<Path>) -> Self {
         let root_dir = assets_dir.as_ref().join("shaders");
-        Self {
+        let mut generator = Self {
             loader: ShaderLoader::new(assets_dir),
             root_dir,
-        }
+        };
+        // 注册内置 shader
+        generator.register_builtin_shaders();
+        generator
+    }
+
+    /// 注册内置 shader
+    fn register_builtin_shaders(&mut self) {
+        // basic_diffuse - 基础漫反射 shader
+        let basic_diffuse_source = r#"
+// =========================================================
+// Builtin Shader: Basic Diffuse
+// 内置默认材质 shader
+// =========================================================
+
+#include "core/input.wgsl"
+#include "core/lighting.wgsl"
+
+struct MaterialUniform {
+    color_mod: vec4<f32>,
+}
+@group(2) @binding(0) var<uniform> material_uniform: MaterialUniform;
+
+@vertex
+fn vs_main(
+    model: VertexInput,
+    instance: InstanceInput,
+) -> VertexOutput {
+    let model_matrix = mat4x4<f32>(
+        instance.model_matrix_0,
+        instance.model_matrix_1,
+        instance.model_matrix_2,
+        instance.model_matrix_3,
+    );
+
+    var out: VertexOutput;
+
+    // Apply Model Matrix
+    let world_pos = model_matrix * vec4<f32>(model.position, 1.0);
+    out.world_position = world_pos.xyz;
+
+    // Transform Normal
+    let world_normal = (model_matrix * vec4<f32>(model.normal, 0.0)).xyz;
+    out.world_normal = normalize(world_normal);
+
+    out.uv = model.uv;
+    out.clip_position = camera.view_proj * world_pos;
+
+    // 设置 tangent 和 bitangent（可选，设为零向量）
+    out.world_tangent = vec3<f32>(0.0);
+    out.world_bitangent = vec3<f32>(0.0);
+
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let base_color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    let normal = normalize(in.world_normal);
+    let view_dir = normalize(camera.view_pos - in.world_position);
+
+    var total_light = vec3<f32>(0.0);
+
+    // 环境光
+    let ambient = vec3<f32>(0.15) * base_color.rgb;
+    total_light += ambient;
+
+    // 遍历点光源
+    for (var i: u32 = 0u; i < lights.point_light_info.x; i++) {
+        let light = lights.point_lights[i];
+        total_light += calculate_point_light(
+            light,
+            normal,
+            view_dir,
+            in.world_position,
+            base_color.rgb,
+            32.0
+        );
+    }
+
+    // Apply material uniform
+    let mod_color = material_uniform.color_mod.rgb;
+    total_light += mod_color;
+
+    return vec4<f32>(total_light, base_color.a);
+}
+"#;
+        self.loader.register_builtin("builtin/basic_diffuse", basic_diffuse_source);
+
+        // line - 线条 shader
+        let line_source = r#"
+// =========================================================
+// Builtin Shader: Line
+// 内置线条渲染 shader
+// =========================================================
+
+#include "core/input.wgsl"
+
+struct LineUniform {
+    color: vec4<f32>,
+}
+@group(2) @binding(0) var<uniform> line_uniform: LineUniform;
+
+@vertex
+fn vs_main(
+    model: VertexInput,
+    instance: InstanceInput,
+) -> VertexOutput {
+    let model_matrix = mat4x4<f32>(
+        instance.model_matrix_0,
+        instance.model_matrix_1,
+        instance.model_matrix_2,
+        instance.model_matrix_3,
+    );
+
+    var out: VertexOutput;
+    let world_pos = model_matrix * vec4<f32>(model.position, 1.0);
+    out.world_position = world_pos.xyz;
+    out.clip_position = camera.view_proj * world_pos;
+    out.uv = model.uv;
+    out.world_normal = vec3<f32>(0.0, 1.0, 0.0);
+    out.world_tangent = vec3<f32>(0.0);
+    out.world_bitangent = vec3<f32>(0.0);
+
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return line_uniform.color;
+}
+"#;
+        self.loader.register_builtin("builtin/line", line_source);
+
+        tracing::info!("Registered builtin shaders: basic_diffuse, line");
     }
 
     /// 扫描 `assets/shaders/custom` 目录并为每个 `.wgsl` 文件生成 Pipeline

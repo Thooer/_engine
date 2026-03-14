@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use winit::window::Window;
 use winit::event::WindowEvent;
-use egui;
+use bevy_ecs::prelude::World;
 
 use super::{FrameStartError, MainRenderer, RendererTrait, SurfaceContextTrait};
-use crate::ui::{GuiSystem, GuiSystemTrait, UiComponent, EngineStatsUi, EngineStatsUiTrait};
+use crate::ui::{GuiSystem, GuiSystemTrait, EngineStatsUi, EngineStatsUiTrait};
 use crate::graphics::{
     Texture, TextureLoader,
     PointLight,
@@ -165,6 +165,9 @@ impl RendererTrait for MainRenderer {
 
         Self {
             surface_size: ctx.size(),
+            device: device.clone(),
+            queue: ctx.queue().clone(),
+            config: config.clone(),
             material_cache: HashMap::new(),
             shader_cache: HashMap::new(),
             texture_cache: HashMap::new(),
@@ -177,6 +180,10 @@ impl RendererTrait for MainRenderer {
             point_lights: Vec::new(),
             ui_objects: Vec::new(),
             lines: Vec::new(),
+            instance_buffer: None,
+            instance_buffer_capacity: 0,
+            line_buffer: None,
+            line_buffer_capacity: 0,
             frame_bind_group,
             frame_bind_group_layout,
             pass_bind_group,
@@ -212,6 +219,91 @@ impl RendererTrait for MainRenderer {
         self.gui.handle_event(window, event)
     }
 
+    fn collect_from_world(&mut self, world: &mut World) {
+        use engine_core::ecs::Transform;
+        use crate::ecs::MeshRenderable;
+        use crate::graphics::ModelLoaderTrait;
+        
+        self.ui_objects.clear();
+        self.lines.clear();
+        self.point_lights.clear();
+
+        // Query all renderable entities with Transform and MeshRenderable
+        let mut query = world.query::<(&Transform, &MeshRenderable)>();
+        for (transform, mesh) in query.iter(world) {
+            // Auto-load model if not in cache
+            if !self.model_cache.contains_key(&mesh.mesh_id) {
+                let model_path = format!("assets/models/{}", mesh.mesh_id);
+                match crate::graphics::ModelLoader::load_gltf(&self.device, &self.queue, &model_path) {
+                    Ok(gpu_model) => {
+                        tracing::info!("Auto-loaded model: {}", mesh.mesh_id);
+                        self.model_cache.insert(mesh.mesh_id.clone(), Arc::new(gpu_model));
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to auto-load model {}: {}", model_path, e);
+                        continue;
+                    }
+                }
+            }
+
+            if let Some(model) = self.model_cache.get(&mesh.mesh_id) {
+                // material_override: if MeshRenderable.material_id is non-empty, use it; otherwise None
+                let material_override = if mesh.material_id.is_empty() {
+                    None
+                } else {
+                    Some(mesh.material_id.clone())
+                };
+                self.model_objects.push((model.clone(), *transform, material_override));
+            }
+        }
+
+        // Query point lights
+        let mut light_query = world.query::<&crate::ecs::EcsPointLight>();
+        for light in light_query.iter(world) {
+            self.point_lights.push(PointLight {
+                position: [light.position.x, light.position.y, light.position.z],
+                range: light.range,
+                color: [light.color.x, light.color.y, light.color.z],
+                intensity: light.intensity,
+            });
+        }
+
+        // Query lines
+        let mut line_query = world.query::<&crate::ecs::LineRenderable>();
+        for line in line_query.iter(world) {
+            let vertex = |pos: [f32; 3]| crate::graphics::Vertex {
+                position: pos,
+                normal: [0.0; 3],
+                uv: [0.0; 2],
+                color: line.color,
+            };
+            self.lines.push(vertex([line.start.x, line.start.y, line.start.z]));
+            self.lines.push(vertex([line.end.x, line.end.y, line.end.z]));
+        }
+
+        // Always add UI
+        self.ui_objects.push(Box::new(EngineStatsUi::new()));
+
+        // Always add axis gizmo
+        let mut add_line = |start: [f32; 3], end: [f32; 3], color: [f32; 4]| {
+            let vertex = |pos| crate::graphics::Vertex {
+                position: pos,
+                normal: [0.0; 3],
+                uv: [0.0; 2],
+                color,
+            };
+            self.lines.push(vertex(start));
+            self.lines.push(vertex(end));
+        };
+
+        add_line([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 1.0]); // X Axis (Red)
+        add_line([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 1.0]); // Y Axis (Green)
+        add_line([0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0]); // Z Axis (Blue)
+        
+        // 更新相机 uniform
+        self.update_camera_uniform(world);
+    }
+
     fn collect_render_objects(&mut self) {
         self.model_objects.clear();
         self.ui_objects.clear();
@@ -226,6 +318,7 @@ impl RendererTrait for MainRenderer {
                     rotation: glam::Quat::IDENTITY,
                     scale: glam::Vec3::ONE,
                 },
+                None, // no material override for hardcoded objects
             ));
         }
 
@@ -269,6 +362,60 @@ impl RendererTrait for MainRenderer {
             if let Some(light_uniform) = light_uniform.downcast_ref::<LightGpuUniform>() {
                 light_uniform.update(ctx.queue(), &self.point_lights);
             }
+        }
+
+        // Pre-upload dynamic buffers before passes run
+        // Instance buffer: collect all instance data from model_objects
+        {
+            let mut all_instances: Vec<crate::graphics::InstanceRaw> = Vec::new();
+            use glam::Mat4;
+            
+            for (model, transform, _material_override) in &self.model_objects {
+                let model_matrix = Mat4::from_scale_rotation_translation(
+                    transform.scale,
+                    transform.rotation,
+                    transform.translation,
+                );
+                
+                let mut stack = Vec::new();
+                for node in &model.root_nodes {
+                    stack.push((node, model_matrix));
+                }
+                
+                while let Some((node, parent_matrix)) = stack.pop() {
+                    let node_local_matrix = Mat4::from_scale_rotation_translation(
+                        node.transform.scale,
+                        node.transform.rotation,
+                        node.transform.translation,
+                    );
+                    let node_matrix = parent_matrix * node_local_matrix;
+                    
+                    if let Some(mesh_idx) = node.mesh_index {
+                        if let Some(mesh) = model.meshes.get(mesh_idx) {
+                            // One instance per primitive
+                            for _ in &mesh.primitives {
+                                all_instances.push(crate::graphics::InstanceRaw {
+                                    model: node_matrix.to_cols_array_2d(),
+                                });
+                            }
+                        }
+                    }
+                    
+                    for child in &node.children {
+                        stack.push((child, node_matrix));
+                    }
+                }
+            }
+            
+            if !all_instances.is_empty() {
+                self.update_instance_buffer(ctx.device(), ctx.queue(), &all_instances);
+            }
+        }
+        
+        // Line buffer: upload lines if any
+        if !self.lines.is_empty() {
+            let lines_data = self.lines.clone();
+            self.update_line_buffer(ctx.device(), ctx.queue(), &lines_data);
         }
 
         let (output, view) = ctx.frame_start()?;
@@ -318,4 +465,95 @@ fn render_ui(
         renderer.window,
         &mut renderer.ui_objects,
     );
+}
+
+// ============================================================================
+// Dynamic GPU Buffer Management
+// ============================================================================
+
+impl MainRenderer {
+    /// Update camera uniform from ECS world
+    pub fn update_camera_uniform(&mut self, world: &mut World) {
+        use engine_core::ecs::Camera3D;
+        use crate::uniforms::CameraGpuUniformTrait;
+        
+        if let Some(camera_uniform_arc) = self.uniform_cache.get("Camera Uniform") {
+            if let Some(camera_uniform) = camera_uniform_arc.downcast_ref::<crate::uniforms::CameraGpuUniform>() {
+                let mut camera_query = world.query::<&Camera3D>();
+                if let Some(camera) = camera_query.iter(world).next() {
+                    camera_uniform.update(&self.queue, camera, &self.config);
+                }
+            }
+        }
+    }
+    
+    /// Ensure the instance buffer is large enough and return a slice to write to.
+    /// If the buffer is too small, it will be recreated with sufficient capacity.
+    pub fn get_instance_buffer(&mut self, device: &wgpu::Device, needed_instances: usize) -> &wgpu::Buffer {
+        let instance_size = std::mem::size_of::<crate::graphics::InstanceRaw>();
+        let needed_bytes = needed_instances * instance_size;
+        
+        // Recreate buffer if needed
+        if self.instance_buffer.is_none() || self.instance_buffer_capacity < needed_instances {
+            self.instance_buffer = Some(device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Dynamic Instance Buffer"),
+                size: needed_bytes as u64,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            }));
+            self.instance_buffer_capacity = needed_instances;
+        }
+        
+        self.instance_buffer.as_ref().unwrap()
+    }
+    
+    /// Update the instance buffer with new data.
+    pub fn update_instance_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, instances: &[crate::graphics::InstanceRaw]) {
+        let buffer = self.get_instance_buffer(device, instances.len());
+        if !instances.is_empty() {
+            queue.write_buffer(buffer, 0, bytemuck::cast_slice(instances));
+        }
+    }
+    
+    /// Ensure the line buffer is large enough and return a slice to write to.
+    pub fn get_line_buffer(&mut self, device: &wgpu::Device, needed_vertices: usize) -> &wgpu::Buffer {
+        let vertex_size = std::mem::size_of::<crate::graphics::Vertex>();
+        let needed_bytes = needed_vertices * vertex_size;
+        
+        // Recreate buffer if needed
+        if self.line_buffer.is_none() || self.line_buffer_capacity < needed_vertices {
+            self.line_buffer = Some(device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Dynamic Line Buffer"),
+                size: needed_bytes as u64,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            }));
+            self.line_buffer_capacity = needed_vertices;
+        }
+        
+        self.line_buffer.as_ref().unwrap()
+    }
+    
+    /// Update the line buffer with new data.
+    pub fn update_line_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, vertices: &[crate::graphics::Vertex]) {
+        let buffer = self.get_line_buffer(device, vertices.len());
+        if !vertices.is_empty() {
+            queue.write_buffer(buffer, 0, bytemuck::cast_slice(vertices));
+        }
+    }
+
+    /// Get the wgpu device reference
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    /// Get the wgpu queue reference
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
+
+    /// Get the surface configuration reference
+    pub fn get_surface_config(&self) -> &wgpu::SurfaceConfiguration {
+        &self.config
+    }
 }

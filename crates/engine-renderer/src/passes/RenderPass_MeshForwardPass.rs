@@ -3,7 +3,6 @@ use crate::renderer::{MainRenderer, SurfaceContextTrait, FrameStartError};
 use glam::Mat4;
 
 use crate::graphics::InstanceRaw;
-use wgpu::util::DeviceExt;
 
 impl RenderPass for MeshForwardPass {
     fn render(
@@ -15,6 +14,16 @@ impl RenderPass for MeshForwardPass {
     ) -> Result<(), FrameStartError> {
         let depth_texture = renderer.render_targets.get("Depth Texture").expect("Depth Texture not found");
 
+        // Get the pre-uploaded instance buffer (uploaded in MainRenderer::render before calling passes)
+        let instance_buffer = match &renderer.instance_buffer {
+            Some(buf) => buf,
+            None => {
+                // Fallback: no instances to render
+                return Ok(());
+            }
+        };
+        let instance_size = std::mem::size_of::<InstanceRaw>() as u64;
+
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Mesh Forward Pass"),
@@ -22,7 +31,7 @@ impl RenderPass for MeshForwardPass {
                     view: view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.3, g: 0.3, b: 0.3, a: 1.0 }),
                         store: wgpu::StoreOp::Store,
                     },
                     depth_slice: None,
@@ -43,8 +52,11 @@ impl RenderPass for MeshForwardPass {
             rpass.set_bind_group(0, &renderer.frame_bind_group, &[]);
             rpass.set_bind_group(1, &renderer.pass_bind_group, &[]);
 
-            // Draw Objects
-            for (model, transform) in &renderer.model_objects {
+            // Track current instance index in the buffer
+            let mut current_instance_idx: usize = 0;
+
+            // Draw Objects - use pre-uploaded instance buffer
+            for (model, transform, material_override) in &renderer.model_objects {
                 let model_matrix = Mat4::from_scale_rotation_translation(
                     transform.scale,
                     transform.rotation,
@@ -66,23 +78,14 @@ impl RenderPass for MeshForwardPass {
 
                     if let Some(mesh_idx) = node.mesh_index {
                         if let Some(mesh) = model.meshes.get(mesh_idx) {
-                            
-                            // Create Instance Buffer for this draw call
-                            // Note: In production, use dynamic buffer or batched instancing
-                            let instance_data = InstanceRaw {
-                                model: node_matrix.to_cols_array_2d(),
-                            };
-                            
-                            let instance_buffer = ctx.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                                label: Some("Instance Buffer"),
-                                contents: bytemuck::cast_slice(&[instance_data]),
-                                usage: wgpu::BufferUsages::VERTEX,
-                            });
-
                             // Bind Vertex Buffer
                             rpass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                            // Bind Instance Buffer (Slot 1)
-                            rpass.set_vertex_buffer(1, instance_buffer.slice(..));
+                            
+                            // Bind Instance Buffer (Slot 1) - use pre-uploaded buffer with offset
+                            let instance_start = current_instance_idx as u64;
+                            rpass.set_vertex_buffer(1, instance_buffer.slice(
+                                (instance_start * instance_size)..((instance_start + mesh.primitives.len() as u64) * instance_size)
+                            ));
                             
                             rpass.set_index_buffer(
                                 mesh.index_buffer.slice(..),
@@ -90,29 +93,33 @@ impl RenderPass for MeshForwardPass {
                             );
 
                             for primitive in &mesh.primitives {
-                                if let Some(mat_name) =
-                                    model.material_names.get(primitive.material_index)
-                                {
-                                    if let Some(material) = renderer.material_cache.get(mat_name) {
-                                        // Bind Pipeline
-                                        if let Some(shader) =
-                                            renderer.shader_cache.get(&material.shader_name)
-                                        {
-                                            rpass.set_pipeline(&shader.pipeline);
-
-                                            // Bind Material Group (Group 2)
-                                            rpass.set_bind_group(2, &material.bind_group, &[]);
-                                            
-                                            rpass.draw_indexed(
-                                                primitive.index_start
-                                                    ..primitive.index_start + primitive.index_count,
-                                                0,
-                                                0..1, // Instance count 1 for now
-                                            );
-                                        }
+                                // Material selection: prefer ECS material_override, fallback to model's default
+                                let mat_name = if let Some(ref mat_override) = material_override {
+                                    if !mat_override.is_empty() {
+                                        mat_override.as_str()
+                                    } else {
+                                        model.material_names.get(primitive.material_index).map(|s| s.as_str()).unwrap_or("default")
+                                    }
+                                } else {
+                                    model.material_names.get(primitive.material_index).map(|s| s.as_str()).unwrap_or("default")
+                                };
+                                
+                                if let Some(material) = renderer.material_cache.get(mat_name) {
+                                    if let Some(shader) = renderer.shader_cache.get(&material.shader_name) {
+                                        rpass.set_pipeline(&shader.pipeline);
+                                        rpass.set_bind_group(2, &material.bind_group, &[]);
+                                        
+                                        rpass.draw_indexed(
+                                            primitive.index_start..primitive.index_start + primitive.index_count,
+                                            0,
+                                            0..1,
+                                        );
                                     }
                                 }
                             }
+                            
+                            // Advance instance index
+                            current_instance_idx += mesh.primitives.len();
                         }
                     }
 

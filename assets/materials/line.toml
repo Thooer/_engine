@@ -1,6 +1,6 @@
 [[materials]]
 name = "line"
-shader = "custom/line.wgsl"
+shader = "builtin/line"
 
 [materials.pipeline_state]
 blend_mode = "AlphaBlend"

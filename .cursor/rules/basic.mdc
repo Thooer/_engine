@@ -1,0 +1,7 @@
+---
+alwaysApply: true
+---
+
+crates\是引擎本体，用Rust编写，严禁耦合游戏逻辑。
+crates\engine-app是引擎入口。
+demos\simple_demo是一个具体的游戏，用WASM脚本驱动，严禁硬编码引擎逻辑。

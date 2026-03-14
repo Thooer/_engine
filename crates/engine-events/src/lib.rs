@@ -5,8 +5,8 @@
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 
-/// 事件基础 trait
-pub trait Event: Send + Sync + 'static {}
+// 使用 Bevy 的 Event trait 作为基础
+pub use bevy_ecs::event::Event;
 
 /// 事件存储容器
 pub trait EventContainer: Any + Send + Sync {

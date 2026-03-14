@@ -10,13 +10,12 @@
 // @group(0) @binding(0) var<uniform> camera: CameraUniform; // 已经在 core/input.wgsl 中定义
 
 // Group 2: 材质 (自定义)
-@group(2) @binding(0) var base_texture: texture_2d<f32>;
-// @group(2) @binding(1) var base_sampler: sampler; // Removed, use global sampler
+// @group(2) @binding(0) var base_texture: texture_2d<f32>; // Removed - not used
 
 struct MaterialUniform {
     color_mod: vec4<f32>,
 }
-@group(2) @binding(1) var<uniform> material_uniform: MaterialUniform;
+@group(2) @binding(0) var<uniform> material_uniform: MaterialUniform;
 
 @vertex
 fn vs_main(

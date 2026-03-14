@@ -32,6 +32,7 @@ bevy_reflect = { workspace = true }
 serde = { workspace = true }
 bincode = { workspace = true }
 ron = { workspace = true }
+uuid = { workspace = true }
 
 # 文件系统
 notify = { workspace = true }

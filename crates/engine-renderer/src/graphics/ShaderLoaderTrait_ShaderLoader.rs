@@ -2,6 +2,8 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::path::Path;
 use std::fs;
+use std::sync::{Arc, RwLock};
+use std::collections::HashMap;
 use crate::graphics::{ShaderLoader, ShaderLoaderTrait};
 
 /// 递归处理 include 指令
@@ -21,7 +23,7 @@ fn process_includes(root_dir: &Path, source: &str, included: &mut HashSet<String
                     continue; // 格式错误
                 }
                 let include_path = &trimmed[start + 1..end];
-                
+
                 // 避免循环/重复引用
                 if included.contains(include_path) {
                     continue;
@@ -36,7 +38,7 @@ fn process_includes(root_dir: &Path, source: &str, included: &mut HashSet<String
 
                 // 递归处理被引用文件中的 include
                 let processed_include = process_includes(root_dir, &include_content, included)?;
-                
+
                 final_source.push_str(&processed_include);
                 final_source.push('\n');
             }
@@ -53,7 +55,13 @@ impl ShaderLoaderTrait for ShaderLoader {
     fn new(assets_dir: impl AsRef<Path>) -> Self {
         Self {
             root_dir: assets_dir.as_ref().join("shaders"),
+            builtin_shaders: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    fn register_builtin(&self, identifier: &str, source: &str) {
+        let mut builtins = self.builtin_shaders.write().unwrap();
+        builtins.insert(identifier.to_string(), source.to_string());
     }
 
     /// 加载并预处理着色器代码
@@ -62,13 +70,23 @@ impl ShaderLoaderTrait for ShaderLoader {
     fn load_shader_source(&self, shader_path: &str) -> Result<String, String> {
         // Normalize slashes for consistency
         let shader_path_normalized = shader_path.replace('\\', "/");
-        
+
+        // 先检查内置 shader
+        if shader_path_normalized.starts_with("builtin/") {
+            let builtins = self.builtin_shaders.read().unwrap();
+            if let Some(source) = builtins.get(&shader_path_normalized) {
+                // 内置 shader 也支持 include，需要处理
+                return process_includes(&self.root_dir, source, &mut HashSet::new());
+            }
+            return Err(format!("Builtin shader not found: {}", shader_path_normalized));
+        }
+
         let full_path = if shader_path_normalized.starts_with("assets/") {
             Path::new(&shader_path_normalized).to_path_buf()
         } else {
             self.root_dir.join(&shader_path_normalized)
         };
-        
+
         let content = fs::read_to_string(&full_path)
             .map_err(|e| format!("Failed to read shader file {}: {}", full_path.display(), e))?;
 
@@ -77,13 +95,13 @@ impl ShaderLoaderTrait for ShaderLoader {
 
     /// 创建 wgpu ShaderModule
     fn create_shader_module(
-        &self, 
-        device: &wgpu::Device, 
-        shader_path: &str, 
+        &self,
+        device: &wgpu::Device,
+        shader_path: &str,
         label: Option<&str>
     ) -> Result<wgpu::ShaderModule, String> {
         let source = self.load_shader_source(shader_path)?;
-        
+
         Ok(device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label,
             source: wgpu::ShaderSource::Wgsl(Cow::Owned(source)),

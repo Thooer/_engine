@@ -8,10 +8,13 @@
 // 如果需要使用 bevy_ecs 的类型，在使用的地方直接引入
 // 示例：use bevy_ecs::prelude::{Entity, World, SystemState};
 
+pub use bevy_ecs::prelude::{Component, World, ReflectComponent};
+use bevy_reflect::Reflect;
 use glam::{Quat, Vec3};
 
 /// 基础变换组件
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Transform {
     /// 位置
     pub translation: Vec3,
@@ -21,8 +24,19 @@ pub struct Transform {
     pub scale: Vec3,
 }
 
+impl Default for Transform {
+    fn default() -> Self {
+        Self {
+            translation: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+            scale: Vec3::ONE,
+        }
+    }
+}
+
 /// 可渲染标记与颜色数据
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Renderable {
     /// 线性颜色
     pub color: Vec3,
@@ -33,7 +47,8 @@ pub struct Renderable {
 /// 设计目标：
 /// - 仅用于 2D / 平面场景的平移缩放
 /// - 暂不处理旋转，避免过早复杂化
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Camera2D {
     /// 相机在世界坐标中的位置
     pub position: Vec3,
@@ -41,12 +56,22 @@ pub struct Camera2D {
     pub zoom: f32,
 }
 
+impl Default for Camera2D {
+    fn default() -> Self {
+        Self {
+            position: Vec3::new(0.0, 0.0, 10.0),
+            zoom: 1.0,
+        }
+    }
+}
+
 /// 简单三维相机组件（阶段 5 v0 / cube3d_demo 使用）
 ///
 /// 设计目标：
 /// - 提供最小化的三维相机数据：位置 + 朝向
 /// - 视图矩阵通过 `Mat4::look_to_rh(position, forward, Vec3::Y)` 计算
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Camera3D {
     /// 相机在世界坐标中的位置
     pub position: Vec3,
@@ -54,37 +79,17 @@ pub struct Camera3D {
     pub forward: Vec3,
 }
 
-/// 刚体组件 - 与 Rapier 物理引擎集成
-///
-/// 持有 Rapier 刚体的内部句柄，用于与物理世界同步
-#[derive(Component, Clone, Debug)]
-pub struct RigidBody {
-    /// Rapier 刚体句柄
-    pub handle: u32,
-}
-
-/// 碰撞体组件 - 与 Rapier 物理引擎集成
-///
-/// 持有 Rapier 碰撞体的内部句柄
-#[derive(Component, Clone, Debug)]
-pub struct Collider {
-    /// Rapier 碰撞体句柄
-    pub handle: u32,
+impl Default for Camera3D {
+    fn default() -> Self {
+        Self {
+            position: Vec3::new(0.0, 5.0, 10.0),
+            forward: Vec3::new(0.0, -0.5, -1.0).normalize(),
+        }
+    }
 }
 
 /// 物理查询结果 - 用于射线检测等
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub struct PhysicsQuery;
-
-#[path = "Default_Camera2D.rs"]
-mod default_camera2d;
-
-#[path = "Default_Transform.rs"]
-mod default_transform;
-
-#[path = "Default_RigidBody.rs"]
-mod default_rigid_body;
-
-#[path = "Default_Collider.rs"]
-mod default_collider;
 

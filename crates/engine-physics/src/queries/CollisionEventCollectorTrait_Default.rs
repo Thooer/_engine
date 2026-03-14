@@ -3,8 +3,7 @@
 use rapier3d::prelude::*;
 use crate::PhysicsContext;
 use crate::queries::CollisionEventCollectorTrait::CollisionEventCollectorTrait;
-use crate::queries::CollisionEvent;
-use crate::queries::CollisionEventType;
+use crate::queries::CollisionEventCollectorTrait::{CollisionEvent, CollisionEventType};
 use std::collections::HashSet;
 
 struct DefaultCollisionEventCollector {

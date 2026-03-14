@@ -3,7 +3,7 @@
 use rapier3d::prelude::*;
 use crate::PhysicsContext;
 use crate::queries::OverlapQueryTrait::OverlapQueryTrait;
-use crate::queries::ShapeQuery;
+use crate::queries::OverlapQueryTrait::ShapeQuery;
 use nalgebra::Isometry3;
 use glam::Vec3;
 

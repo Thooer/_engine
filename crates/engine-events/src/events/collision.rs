@@ -1,8 +1,7 @@
 //! 碰撞事件定义
 
 use bevy_ecs::prelude::Entity;
-
-use crate::Event;
+use bevy_ecs::prelude::Event;
 
 /// 碰撞状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,7 +12,7 @@ pub enum CollisionStatus {
 }
 
 /// 碰撞事件
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Event)]
 pub struct Collision {
     /// 实体 A
     pub entity_a: Entity,

@@ -1,23 +1,38 @@
 use std::time::Instant;
 
+use bevy_ecs::prelude::World;
 use engine_core::input::{InputState, InputStateExt};
 use engine_renderer::renderer::SurfaceSize;
 
-use super::{App, AppConfig, AppRunner, AppRunnerTrait, Engine};
+use super::{App, AppConfig, AppRunner, AppRunnerTrait, Engine, SystemSchedule};
 
 impl<A: App> AppRunnerTrait<A> for AppRunner<A> {
-    fn new(config: AppConfig, app: A) -> Self {
+    fn new(config: AppConfig, mut app: A) -> Self {
+        let mut world = World::new();
+
+        // 将 InputState 注入 ECS 作为 Resource（现在只有这一处）
+        world.insert_resource(InputState::new());
+
+        app.configure_ecs(&mut world);
+
+        // 获取系统调度器
+        let schedule = app.systems();
+
         Self {
             config,
             app,
             engine: Engine {
                 window: None,
                 ctx: None,
-                input: InputState::new(),
+                // input 已移除，只使用 ECS Resource
+                world,
+                main_renderer: None,
                 exit_requested: false,
                 frame_index: 0,
             },
             last_frame_time: None,
+            schedule,
+            setup_done: false,
         }
     }
 

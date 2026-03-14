@@ -1,0 +1,16 @@
+[[materials]]
+name = "default"
+shader = "custom/basic_diffuse.wgsl"
+
+[materials.pipeline_state]
+blend_mode = "Opaque"
+depth_write = true
+cull_mode = "Back"
+topology = "TriangleList"
+
+[[materials.inputs]]
+type = "Buffer"
+binding = 0
+fields = [
+    { name = "color_mod", type = "vec4" }
+]

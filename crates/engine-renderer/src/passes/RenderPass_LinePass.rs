@@ -1,6 +1,5 @@
 use super::{RenderPass, LinePass, PassResource, ResourceAccess};
 use crate::renderer::{MainRenderer, SurfaceContextTrait, FrameStartError};
-use wgpu::util::DeviceExt;
 
 impl RenderPass for LinePass {
     fn render(
@@ -16,12 +15,14 @@ impl RenderPass for LinePass {
 
         let depth_texture = renderer.render_targets.get("Depth Texture").expect("Depth Texture not found");
         
-        // Create vertex buffer for lines
-        let vertex_buffer = ctx.device().create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Debug Line Vertex Buffer"),
-            contents: bytemuck::cast_slice(&renderer.lines),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+        // Get the pre-uploaded line buffer (uploaded in MainRenderer::render before calling passes)
+        let line_buffer = match &renderer.line_buffer {
+            Some(buf) => buf,
+            None => {
+                // Fallback: no lines to render
+                return Ok(());
+            }
+        };
 
         // Get shader via material
         let material_name = "line";
@@ -59,7 +60,8 @@ impl RenderPass for LinePass {
                 // Set Group 2 (Material)
                 rpass.set_bind_group(2, &material.bind_group, &[]);
 
-                rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                // Use the pre-uploaded dynamic line buffer
+                rpass.set_vertex_buffer(0, line_buffer.slice(..));
                 rpass.draw(0..renderer.lines.len() as u32, 0..1);
             } else {
                 eprintln!("Error: Shader '{}' not found for material '{}'", material.shader_name, material_name);

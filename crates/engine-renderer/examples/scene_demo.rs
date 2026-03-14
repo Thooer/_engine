@@ -8,7 +8,9 @@ use engine_renderer::graphics::{
 };
 use engine_renderer::uniforms::{*};
 // use engine_core::camera::camera3d_fly_wasd;
-use engine_core::ecs::{Camera3D, Transform, World};
+use engine_core::ecs::{Camera3D, Transform};
+use engine_renderer::ecs::{MeshRenderable, EcsPointLight};
+use bevy_ecs::prelude::Entity;
 
 use glam::{Mat4, Quat, Vec3};
 
@@ -61,9 +63,48 @@ impl App for SceneDemoApp {
                 println!("  Materials: {:?}", model.material_names);
                 println!("  Root Nodes: {}", model.root_nodes.len());
                 
-                // Add to renderer
-                renderer.model_cache.insert(model.name.clone(), std::sync::Arc::new(model));
-                renderer.collect_render_objects();
+                // Save model name before moving
+                let model_name = model.name.clone();
+                
+                // Add to renderer cache
+                renderer.model_cache.insert(model_name.clone(), std::sync::Arc::new(model));
+                
+                // Spawn entity in ECS World with Transform + MeshRenderable
+                let world = engine.world_mut();
+                world.spawn((
+                    Transform {
+                        translation: Vec3::new(0.0, 0.0, 0.0),
+                        rotation: Quat::IDENTITY,
+                        scale: Vec3::ONE,
+                    },
+                    MeshRenderable {
+                        mesh_id: model_name.clone(),
+                        material_id: String::new(), // use model's default material
+                    },
+                ));
+                
+                // Spawn a second entity at offset position to test multiple objects
+                world.spawn((
+                    Transform {
+                        translation: Vec3::new(2.0, 0.0, 0.0),
+                        rotation: Quat::IDENTITY,
+                        scale: Vec3::new(0.5, 0.5, 0.5),
+                    },
+                    MeshRenderable {
+                        mesh_id: model_name.clone(),
+                        material_id: String::new(),
+                    },
+                ));
+                
+                // Spawn a point light
+                world.spawn((
+                    EcsPointLight {
+                        position: Vec3::new(2.0, 2.0, 2.0),
+                        range: 10.0,
+                        color: Vec3::new(1.0, 1.0, 1.0),
+                        intensity: 1.0,
+                    },
+                ));
             },
             Err(e) => {
                 eprintln!("Failed to load model '{}': {}", model_path, e);
@@ -96,7 +137,7 @@ impl App for SceneDemoApp {
             camera_uniform.update(engine.ctx().queue(), &camera, engine.ctx().config());
         }
         
-        renderer.collect_render_objects();
+        renderer.collect_from_world(engine.world_mut());
         renderer.render(engine.ctx_mut()).unwrap();
     }
 }

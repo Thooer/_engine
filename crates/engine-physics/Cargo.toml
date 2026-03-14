@@ -11,8 +11,10 @@ license = "MIT OR Apache-2.0"
 engine-core = { path = "../engine-core" }
 engine-events = { path = "../engine-events" }
 bevy_ecs = { workspace = true }
+bevy_reflect = { workspace = true }
 glam = { workspace = true }
 tracing = { workspace = true }
+winit = { workspace = true }
 
 # 物理引擎
 rapier3d = { workspace = true }

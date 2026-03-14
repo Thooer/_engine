@@ -1,6 +1,6 @@
 [[materials]]
 name = "default"
-shader = "custom/basic_diffuse.wgsl"
+shader = "builtin/basic_diffuse"
 
 [materials.pipeline_state]
 blend_mode = "Opaque"
@@ -9,13 +9,8 @@ cull_mode = "Back"
 topology = "TriangleList"
 
 [[materials.inputs]]
-type = "Texture"
-path = "assets/textures/kane.png"
-binding = 0
-
-[[materials.inputs]]
 type = "Buffer"
-binding = 1
+binding = 0
 fields = [
     { name = "color_mod", type = "vec4" }
 ]

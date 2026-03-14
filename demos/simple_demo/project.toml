@@ -1,0 +1,18 @@
+[name]
+simple_demo = "简单演示"
+
+[project]
+version = "0.1.0"
+
+[run]
+# 入口场景（必填）
+scene = "assets/scenes/main.ron"
+
+# 项目资源根目录（本地 assets 文件夹）
+assets_dir = "assets"
+
+# WASM 脚本路径（可选，用于自定义逻辑）
+script = "assets/scripts/game.wasm"
+
+# 相机控制模式: orbit, orbital, figure8, spiral
+camera_mode = "orbit"
