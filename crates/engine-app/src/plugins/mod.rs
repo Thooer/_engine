@@ -15,7 +15,7 @@ use engine_physics::{PhysicsContext, PhysicsContextTrait, reset_on_keypress_syst
 
 use engine_renderer::grid::spawn_grid_system;
 use engine_renderer::renderer::{MainRenderer, RendererTrait, SurfaceContextTrait};
-use engine_renderer::graphics::{MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait};
+use engine_renderer::loaders::{MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait};
 use engine_renderer::uniforms::{CameraGpuUniform, CameraGpuUniformTrait};
 use engine_core::ecs::Camera3D;
 use engine_scene::load_scene;
@@ -281,7 +281,10 @@ impl RenderPlugin {
             let pipeline_generator = <PipelineGenerator as PipelineGeneratorTrait>::new("assets");
             match MaterialLoader::load_materials(
                 &device, &queue, materials_path,
-                &pipeline_generator, format,
+                &pipeline_generator,
+                &renderer.global_layouts,
+                &mut renderer.layout_cache,
+                format,
                 Some(wgpu::TextureFormat::Depth32Float)
             ) {
                 Ok(resources) => {

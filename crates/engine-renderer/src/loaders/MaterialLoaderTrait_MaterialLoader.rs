@@ -1,7 +1,9 @@
 use crate::graphics::{
-    GpuMaterial, LoadedMaterialResources, MaterialConfig, MaterialData, MaterialInput,
-    MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait, Texture,
-    TextureLoader,
+    GpuMaterial, MaterialConfig, MaterialData, MaterialInput, Texture,
+};
+use crate::loaders::{
+    LoadedMaterialResources, MaterialLoader, MaterialLoaderTrait, PipelineGenerator,
+    PipelineGeneratorTrait, TextureLoader,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -35,6 +37,8 @@ impl MaterialLoaderTrait for MaterialLoader {
         queue: &wgpu::Queue,
         path: impl AsRef<Path>,
         pipeline_generator: &PipelineGenerator,
+        global_layouts: &crate::graphics::GlobalLayouts,
+        layout_cache: &mut crate::graphics::MaterialLayoutCache,
         format: wgpu::TextureFormat,
         depth_format: Option<wgpu::TextureFormat>,
     ) -> Result<LoadedMaterialResources, String> {
@@ -127,16 +131,13 @@ impl MaterialLoaderTrait for MaterialLoader {
 
         for config in configs {
             // A. 准备 Layouts & Shader
-            // Standard Layouts
-            let frame_layout = PipelineGenerator::create_frame_bind_group_layout(device);
-            let pass_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Empty Layout"),
-                entries: &[],
-            });
+            // Standard Layouts (Group 0 & 1)
+            let frame_layout = &global_layouts.frame_layout;
+            let pass_layout = &global_layouts.pass_layout;
 
             // Material Layout (Group 2)
             let inputs = config.inputs.as_deref().unwrap_or(&[]);
-            let material_layout = Self::create_bind_group_layout(device, inputs);
+            let material_layout = layout_cache.get_or_create(device, inputs);
 
             // Generate a unique key for the shader based on path and pipeline state
             let shader_key = format!("{}?{:?}", config.shader, config.pipeline_state);
@@ -148,7 +149,7 @@ impl MaterialLoaderTrait for MaterialLoader {
                     &config.shader,
                     format,
                     depth_format,
-                    &[&frame_layout, &pass_layout, &material_layout],
+                    &[frame_layout, pass_layout, &material_layout],
                     &config.pipeline_state,
                 )?;
                 resources

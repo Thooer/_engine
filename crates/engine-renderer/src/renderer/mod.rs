@@ -10,7 +10,7 @@ use winit::event::WindowEvent;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::any::Any;
-use crate::graphics::{GpuMaterial, GpuShader, GpuMesh, GpuModel, Texture, DirectLight, PointLight};
+use crate::graphics::{GpuMaterial, GpuShader, GpuMesh, GpuModel, Texture, DirectLight, PointLight, GlobalLayouts, MaterialLayoutCache};
 use crate::passes::RenderPass;
 
 // pub use self::simple_mesh2d_pass_draw::{draw_simple_mesh2d_pass, SimpleMesh2DPassConfig};
@@ -108,60 +108,6 @@ pub trait SimpleMeshPipeline2D {
     );
 }
 
-/// 简单 2D 网格渲染管线实现
-#[path = "SimpleMeshPipeline2D_SimpleMeshPipeline2DPipeline.rs"]
-mod simple_mesh_pipeline2d_simple_mesh_pipeline2d_pipeline;
-
-/// 一个最小实现：用于 phase4 示例等场景的简单 2D 网格管线。
-///
-/// 约定：
-/// - 仅有一个顶点缓冲，location(0) = vec2<f32> 位置
-/// - 片元着色器输出固定颜色
-#[derive(Debug)]
-pub struct SimpleMeshPipeline2DPipeline {
-    pub(crate) pipeline: wgpu::RenderPipeline,
-}
-
-/// 带实例数据的二维网格渲染管线 trait。
-///
-/// 约定：
-/// - 顶点缓冲：location(0) = vec2<f32> 位置
-/// - 实例缓冲：location(1) = vec2<f32> 偏移，location(2) = vec3<f32> 颜色
-pub trait InstanceColorMeshPipeline2D {
-    /// 创建一条带实例数据的二维网格管线。
-    ///
-    /// - `vertex_stride` 来自网格顶点类型大小：`size_of::<Vertex>() as u64`
-    /// - `instance_stride` 来自实例数据类型大小：`size_of::<InstanceData>() as u64`
-    fn new(
-        device: &wgpu::Device,
-        color_format: wgpu::TextureFormat,
-        vertex_stride: u64,
-        instance_stride: u64,
-    ) -> Self
-    where
-        Self: Sized;
-
-    /// 在给定的 render pass 中绘制若干实例。
-    fn draw<'a>(
-        &'a self,
-        pass: &mut wgpu::RenderPass<'a>,
-        vertex: &'a wgpu::Buffer,
-        instance: &'a wgpu::Buffer,
-        instance_count: u32,
-        vertex_count: u32,
-    );
-}
-
-/// 实例化二维网格渲染管线实现
-#[path = "InstanceColorMeshPipeline2D_InstanceColorMeshPipeline2DPipeline.rs"]
-mod instance_color_mesh_pipeline2d_instance_color_mesh_pipeline2d_pipeline;
-
-/// 一个最小实现：用于 ECS 场景示例的实例化网格管线。
-#[derive(Debug)]
-pub struct InstanceColorMeshPipeline2DPipeline {
-    pub(crate) pipeline: wgpu::RenderPipeline,
-}
-
 /// 创建 `SurfaceContext` 的抽象 trait。
 ///
 /// 设计目标：
@@ -197,6 +143,8 @@ pub struct MainRenderer {
     // Resource caches
     pub model_cache: HashMap<String, Arc<GpuModel>>,
     pub mesh_cache: HashMap<String, Arc<GpuMesh>>,
+    pub global_layouts: GlobalLayouts,
+    pub layout_cache: MaterialLayoutCache,
     pub material_cache: HashMap<String, Arc<GpuMaterial>>,
     pub shader_cache: HashMap<String, Arc<GpuShader>>,
     pub texture_cache: HashMap<String, Arc<Texture>>,
@@ -223,10 +171,7 @@ pub struct MainRenderer {
     
     // Frame (Group 0)
     pub frame_bind_group: wgpu::BindGroup,
-    pub frame_bind_group_layout: wgpu::BindGroupLayout,
 
-    // Pass (Group 1 - Empty for now)
-    pub pass_bind_group_layout: wgpu::BindGroupLayout,
 
     pub window: &'static Window,
     pub gui: crate::ui::GuiSystem,

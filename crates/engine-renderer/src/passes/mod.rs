@@ -16,7 +16,7 @@ pub enum PassResource {
 pub trait RenderPass {
     fn render(
         &self,
-        renderer: &MainRenderer,
+        renderer: &mut MainRenderer,
         ctx: &mut dyn SurfaceContextTrait,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
@@ -39,3 +39,8 @@ mod RenderPass_MeshForwardPass;
 pub struct LinePass;
 
 mod RenderPass_LinePass;
+
+pub struct UiPass;
+
+#[path = "RenderPass_UiPass.rs"]
+mod render_pass_ui_pass;

@@ -9,14 +9,14 @@ pub mod renderer;
 pub mod passes;
 pub mod uniforms;
 
-/// 材质模块
-mod materials;
-
 /// UI 模块
 pub mod ui;
 
 /// 通用图形基础
 pub mod graphics;
+
+/// 资源加载器
+pub mod loaders;
 
 /// ECS 渲染组件
 pub mod ecs;
