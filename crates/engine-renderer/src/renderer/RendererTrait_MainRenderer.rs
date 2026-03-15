@@ -381,7 +381,7 @@ impl RendererTrait for MainRenderer {
                 } else {
                     // 从文件加载
                     let model_path = format!("{}/{}", self.models_base_path, mesh.mesh_id);
-                    match crate::graphics::ModelLoader::load_gltf(&self.device, &self.queue, &model_path) {
+                    match crate::loaders::ModelLoader::load_gltf(&self.device, &self.queue, &model_path) {
                         Ok(gpu_model) => {
                             tracing::info!("Auto-loaded model: {}", mesh.mesh_id);
                             self.model_cache.insert(mesh.mesh_id.clone(), Arc::new(gpu_model));
