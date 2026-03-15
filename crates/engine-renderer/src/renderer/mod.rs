@@ -186,7 +186,7 @@ pub trait RendererTrait {
     fn handle_event(&mut self, window: &Window, event: &WindowEvent) -> bool { false }
 
     /// 从 ECS World 收集渲染对象
-    // fn collect_from_world(&mut self, world: &mut World);
+    fn collect_from_world(&mut self, world: &mut World);
 
     /// 渲染 (保留用于兼容)
     // fn collect_render_objects(&mut self);

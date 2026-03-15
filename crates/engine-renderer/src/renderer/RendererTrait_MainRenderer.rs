@@ -455,43 +455,43 @@ impl RendererTrait for MainRenderer {
         self.update_camera_uniform(world);
     }
 
-    fn collect_render_objects(&mut self) {
-        self.model_objects.clear();
-        // 不清空 ui_objects，保留应用注册的 UI
-        self.lines.clear();
+    // fn collect_render_objects(&mut self) {
+    //     self.model_objects.clear();
+    //     // 不清空 ui_objects，保留应用注册的 UI
+    //     self.lines.clear();
 
-        // 硬编码对象现在由场景文件管理，不再在此处添加
+    //     // 硬编码对象现在由场景文件管理，不再在此处添加
 
-        let has_engine_stats = self.ui_objects.iter().any(|c| c.id() == "engine_stats");
-        if !has_engine_stats {
-            self.ui_objects.insert(0, Box::new(EngineStatsUi::new()));
-        }
+    //     let has_engine_stats = self.ui_objects.iter().any(|c| c.id() == "engine_stats");
+    //     if !has_engine_stats {
+    //         self.ui_objects.insert(0, Box::new(EngineStatsUi::new()));
+    //     }
 
-        // Hardcode adding lines (Axis Gizmo)
-        let mut add_line = |start: [f32; 3], end: [f32; 3], color: [f32; 4]| {
-            let vertex = |pos| crate::graphics::Vertex {
-                position: pos,
-                normal: [0.0; 3],
-                uv: [0.0; 2],
-                color,
-            };
-            self.lines.push(vertex(start));
-            self.lines.push(vertex(end));
-        };
+    //     // Hardcode adding lines (Axis Gizmo)
+    //     let mut add_line = |start: [f32; 3], end: [f32; 3], color: [f32; 4]| {
+    //         let vertex = |pos| crate::graphics::Vertex {
+    //             position: pos,
+    //             normal: [0.0; 3],
+    //             uv: [0.0; 2],
+    //             color,
+    //         };
+    //         self.lines.push(vertex(start));
+    //         self.lines.push(vertex(end));
+    //     };
 
-        add_line([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 1.0]); // X Axis (Red)
-        add_line([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 1.0]); // Y Axis (Green)
-        add_line([0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0]); // Z Axis (Blue)
+    //     add_line([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 1.0]); // X Axis (Red)
+    //     add_line([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 1.0]); // Y Axis (Green)
+    //     add_line([0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0]); // Z Axis (Blue)
 
-        // Hardcode adding a point light
-        self.point_lights.clear();
-        self.point_lights.push(GpuPointLight {
-            position: [2.0, 2.0, 2.0],
-            range: 10.0,
-            color: [1.0, 1.0, 1.0],
-            intensity: 1.0,
-        });
-    }
+    //     // Hardcode adding a point light
+    //     self.point_lights.clear();
+    //     self.point_lights.push(GpuPointLight {
+    //         position: [2.0, 2.0, 2.0],
+    //         range: 10.0,
+    //         color: [1.0, 1.0, 1.0],
+    //         intensity: 1.0,
+    //     });
+    // }
 
     fn render<C: SurfaceContextTrait>(
         &mut self,

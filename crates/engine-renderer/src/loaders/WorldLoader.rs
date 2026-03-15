@@ -8,6 +8,7 @@ use crate::ui::{EngineStatsUi, EngineStatsUiTrait};
 
 pub fn collect_from_world(world: &mut World, renderer: &mut MainRenderer) {
     // 不清空 ui_objects，保留应用在 on_start 中注册的 UI（如 ProjectOpener）
+    renderer.model_objects.clear();
     renderer.lines.clear();
     renderer.point_lights.clear();
 
