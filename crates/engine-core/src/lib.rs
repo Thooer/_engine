@@ -26,6 +26,9 @@ mod platform;
 /// 核心模块
 mod core;
 
+/// 配置目录常量
+pub mod config;
+
 /// ECS 系统
 pub mod ecs;
 

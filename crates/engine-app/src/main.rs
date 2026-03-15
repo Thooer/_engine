@@ -7,17 +7,18 @@
 
 use std::path::PathBuf;
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::sync::{Arc, Mutex};
 use engine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait, WasmRuntime};
 use engine_app::plugins::{render_plugin, physics_plugin};
 use engine_app::SystemSchedule;
-use engine_core::engine::EngineCoreTrait;
 use engine_core::input::{InputCode, InputStateExt};
 use engine_platform::config::{ProjectConfig, ConfigLoader};
 use engine_renderer::grid::spawn_grid_system;
 use rfd::FileDialog;
 use egui::Context;
+use serde::Deserialize;
+use toml;
 
 /// UI 与 App 之间的共享状态，用于触发项目热重载
 pub struct SharedState {
@@ -40,10 +41,18 @@ fn get_engine_config_dir() -> PathBuf {
 }
 
 /// 引擎全局配置
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, serde::Serialize)]
 struct GlobalConfig {
     /// 默认项目路径（相对于引擎根目录）
-    default_project: Option<String>,
+    #[serde(default)]
+    default: Option<GlobalDefaultConfig>,
+}
+
+/// 全局配置中的默认项目子配置
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
+struct GlobalDefaultConfig {
+    /// 默认项目路径
+    project: Option<String>,
 }
 
 impl GlobalConfig {
@@ -54,17 +63,9 @@ impl GlobalConfig {
         let config_path = get_engine_config_dir().join(Self::CONFIG_FILE);
         if config_path.exists() {
             if let Ok(contents) = fs::read_to_string(&config_path) {
-                // 简单解析 [default] project = "path"
-                for line in contents.lines() {
-                    let line = line.trim();
-                    if line.starts_with("project") && line.contains('=') {
-                        if let Some(path) = line.split('=').nth(1) {
-                            let path = path.trim().trim_matches('"');
-                            return Self {
-                                default_project: Some(path.to_string()),
-                            };
-                        }
-                    }
+                // 使用 serde 反序列化
+                if let Ok(config) = toml::from_str::<GlobalConfig>(&contents) {
+                    return config;
                 }
             }
         }
@@ -77,22 +78,23 @@ impl GlobalConfig {
         fs::create_dir_all(&config_dir)?;
         let config_path = config_dir.join(Self::CONFIG_FILE);
 
-        let mut contents = String::new();
-        contents.push_str("# ToyEngine 全局配置\n");
-        contents.push_str("# 此文件由引擎自动管理\n\n");
+        let contents = toml::to_string_pretty(self)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-        if let Some(ref project) = self.default_project {
-            contents.push_str(&format!("[default]\nproject = \"{}\"\n", project));
-        }
-
-        let mut file = fs::File::create(config_path)?;
-        file.write_all(contents.as_bytes())?;
+        fs::write(config_path, contents)?;
         Ok(())
     }
 
     /// 设置默认项目
     fn set_default_project(&mut self, project_path: &str) {
-        self.default_project = Some(project_path.to_string());
+        self.default = Some(GlobalDefaultConfig {
+            project: Some(project_path.to_string()),
+        });
+    }
+
+    /// 获取默认项目路径
+    fn default_project(&self) -> Option<String> {
+        self.default.as_ref().and_then(|d| d.project.clone())
     }
 }
 
@@ -365,7 +367,7 @@ fn parse_args() -> (PathBuf, bool) {
     }
 
     // 使用配置文件中的默认项目
-    if let Some(ref project) = config.default_project {
+    if let Some(ref project) = config.default_project() {
         tracing::info!("Using default project from config: {}", project);
         return (PathBuf::from(project), false);
     }

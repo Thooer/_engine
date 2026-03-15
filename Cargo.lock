@@ -1497,6 +1497,7 @@ dependencies = [
  "glam 0.30.10",
  "pollster",
  "rfd",
+ "serde",
  "toml",
  "tracing",
  "tracing-subscriber",
