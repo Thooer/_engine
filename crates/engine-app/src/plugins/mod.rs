@@ -29,33 +29,47 @@ use crate::{SystemSchedule, SystemStage, Engine, EngineTrait};
 /// 物理系统插件 - 包含物理模拟所需的所有系统
 pub struct PhysicsPlugin {
     config: EnginePhysicsConfig,
+    gravity: Option<f32>,
 }
 
 impl PhysicsPlugin {
     pub fn new() -> Self {
         Self {
             config: EnginePhysicsConfig::default_config(),
+            gravity: None, // 使用默认值 -9.81
         }
     }
 
     pub fn with_config(config: EnginePhysicsConfig) -> Self {
-        Self { config }
+        Self { config, gravity: None }
+    }
+
+    /// 设置重力（Y轴分量）
+    pub fn with_gravity(mut self, gravity_y: f32) -> Self {
+        self.gravity = Some(gravity_y);
+        self
     }
 
     /// 构建系统到调度器
     pub fn build(&self, schedule: &mut SystemSchedule) {
         // 克隆配置，供 setup 使用
         let config = self.config.clone();
-        
+        let gravity = self.gravity;
+
         // Startup: 初始化物理 Context 和实体
         schedule.add_system(
             move |world: &mut World| {
                 // 插入 PhysicsContext
-                world.insert_resource(PhysicsContext::new());
-                
+                let mut ctx = PhysicsContext::new();
+                // 如果指定了重力，覆盖默认值
+                if let Some(g) = gravity {
+                    ctx.set_gravity(glam::Vec3::new(0.0, g, 0.0));
+                }
+                world.insert_resource(ctx);
+
                 // 插入 PhysicsConfig
                 world.insert_resource(config.clone());
-                
+
                 // 初始化物理实体
                 physics_world::init_bodies(world);
                 
@@ -68,9 +82,13 @@ impl PhysicsPlugin {
         );
         
         // FixedUpdate: 物理步进 - 包装 ECS 系统
+        // 注意：必须先同步 Kinematic 刚体位置（ECS → 物理），然后再步进
         schedule.add_system(
             |world: &mut World| {
-                // 手动获取资源并调用 ECS 系统逻辑
+                // 1. 先同步 Kinematic 刚体位置（ECS → 物理）
+                physics_world::sync_kinematic_bodies(world);
+
+                // 2. 执行物理步进
                 if let Some(mut ctx) = world.get_resource_mut::<PhysicsContext>() {
                     ctx.step(1.0 / 60.0);
                 }
@@ -113,6 +131,8 @@ pub fn physics_plugin() -> PhysicsPlugin {
 pub struct RenderConfig {
     /// 材质目录路径
     pub materials_path: Option<String>,
+    /// 模型目录路径
+    pub models_path: Option<String>,
     /// 场景文件路径
     pub scene_path: Option<String>,
     /// 是否启用默认网格地面
@@ -123,6 +143,7 @@ impl RenderConfig {
     pub fn new() -> Self {
         Self {
             materials_path: None,
+            models_path: Some("assets/models".to_string()),
             scene_path: None,
             enable_grid: true,
         }
@@ -170,6 +191,11 @@ impl RenderPlugin {
 
     pub fn with_materials(mut self, path: impl Into<String>) -> Self {
         self.config.materials_path = Some(path.into());
+        self
+    }
+
+    pub fn with_models(mut self, path: impl Into<String>) -> Self {
+        self.config.models_path = Some(path.into());
         self
     }
 
@@ -245,8 +271,9 @@ impl RenderPlugin {
         let queue = ctx.queue().clone();
         let format = ctx.color_format();
         
-        // 1. 创建渲染器
-        let mut renderer = MainRenderer::new(ctx, engine.window());
+        // 1. 创建渲染器（使用配置的 models 路径）
+        let models_path = self.config.models_path.as_deref().unwrap_or("assets/models");
+        let mut renderer = MainRenderer::new(ctx, engine.window(), models_path);
 
         // 2. 加载材质
         if let Some(materials_path) = &self.config.materials_path {

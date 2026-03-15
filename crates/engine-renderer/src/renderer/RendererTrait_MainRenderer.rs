@@ -9,12 +9,174 @@ use crate::ui::{GuiSystem, GuiSystemTrait, EngineStatsUi, EngineStatsUiTrait};
 use crate::graphics::{
     Texture, TextureLoader,
     PointLight as GpuPointLight,
+    GpuMesh, MeshPrimitive,
 };
+use wgpu::util::DeviceExt;
 use crate::passes::{MeshForwardPass, LinePass, RenderPass};
 use crate::uniforms::{CameraGpuUniform, CameraGpuUniformTrait, LightGpuUniform, LightGpuUniformTrait};
 
+impl MainRenderer {
+    /// 确保内置几何体已生成（仅生成一次）
+    pub(crate) fn ensure_builtin_meshes(&mut self) {
+        if self.mesh_cache.contains_key("cube") {
+            return;
+        }
+
+        // 生成立方体
+        let cube_mesh = self.create_cube_mesh();
+        self.mesh_cache.insert("cube".to_string(), Arc::new(cube_mesh));
+
+        // 生成球体
+        let sphere_mesh = self.create_sphere_mesh();
+        self.mesh_cache.insert("sphere".to_string(), Arc::new(sphere_mesh));
+
+        tracing::info!("Builtin meshes generated: cube, sphere");
+    }
+
+    /// 创建立方体网格
+    fn create_cube_mesh(&self) -> GpuMesh {
+        // 立方体顶点（24个顶点，每个面4个，以支持不同的法线）
+        let vertices: Vec<crate::graphics::Vertex> = vec![
+            // 前面 (z = 0.5)
+            crate::graphics::Vertex { position: [-0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0], uv: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0], uv: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, 0.5, 0.5], normal: [0.0, 0.0, 1.0], uv: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [-0.5, 0.5, 0.5], normal: [0.0, 0.0, 1.0], uv: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            // 后面 (z = -0.5)
+            crate::graphics::Vertex { position: [-0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0], uv: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [-0.5, 0.5, -0.5], normal: [0.0, 0.0, -1.0], uv: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, 0.5, -0.5], normal: [0.0, 0.0, -1.0], uv: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0], uv: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            // 上面 (y = 0.5)
+            crate::graphics::Vertex { position: [-0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0], uv: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0], uv: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0], uv: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [-0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            // 下面 (y = -0.5)
+            crate::graphics::Vertex { position: [-0.5, -0.5, 0.5], normal: [0.0, -1.0, 0.0], uv: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [-0.5, -0.5, -0.5], normal: [0.0, -1.0, 0.0], uv: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, -0.5, -0.5], normal: [0.0, -1.0, 0.0], uv: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, -0.5, 0.5], normal: [0.0, -1.0, 0.0], uv: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            // 右面 (x = 0.5)
+            crate::graphics::Vertex { position: [0.5, -0.5, 0.5], normal: [1.0, 0.0, 0.0], uv: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, -0.5, -0.5], normal: [1.0, 0.0, 0.0], uv: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, 0.5, -0.5], normal: [1.0, 0.0, 0.0], uv: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [0.5, 0.5, 0.5], normal: [1.0, 0.0, 0.0], uv: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            // 左面 (x = -0.5)
+            crate::graphics::Vertex { position: [-0.5, -0.5, 0.5], normal: [-1.0, 0.0, 0.0], uv: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [-0.5, 0.5, 0.5], normal: [-1.0, 0.0, 0.0], uv: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [-0.5, 0.5, -0.5], normal: [-1.0, 0.0, 0.0], uv: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            crate::graphics::Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0, 0.0, 0.0], uv: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+        ];
+
+        let indices: Vec<u32> = vec![
+            0, 1, 2, 0, 2, 3,       // 前面
+            4, 5, 6, 4, 6, 7,       // 后面
+            8, 9, 10, 8, 10, 11,    // 上面
+            12, 13, 14, 12, 14, 15, // 下面
+            16, 17, 18, 16, 18, 19, // 右面
+            20, 21, 22, 20, 22, 23, // 左面
+        ];
+
+        let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("cube vertex buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("cube index buffer"),
+            contents: bytemuck::cast_slice(&indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        GpuMesh {
+            vertex_buffer,
+            index_buffer,
+            vertex_count: vertices.len() as u32,
+            index_count: indices.len() as u32,
+            primitives: vec![MeshPrimitive {
+                index_start: 0,
+                index_count: indices.len() as u32,
+                material_index: 0,
+            }],
+        }
+    }
+
+    /// 创建球体网格
+    fn create_sphere_mesh(&self) -> GpuMesh {
+        let mut vertices: Vec<crate::graphics::Vertex> = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
+
+        let segments = 32;
+        let rings = 16;
+        let radius = 0.5;
+
+        // 生成顶点
+        for ring in 0..=rings {
+            let phi = std::f32::consts::PI * (ring as f32 / rings as f32);
+            let y = radius * phi.cos();
+            let ring_radius = radius * phi.sin();
+
+            for seg in 0..=segments {
+                let theta = 2.0 * std::f32::consts::PI * (seg as f32 / segments as f32);
+                let x = ring_radius * theta.cos();
+                let z = ring_radius * theta.sin();
+
+                let normal = [x / radius, y / radius, z / radius];
+                vertices.push(crate::graphics::Vertex {
+                    position: [x, y, z],
+                    normal,
+                    uv: [seg as f32 / segments as f32, ring as f32 / rings as f32],
+                    color: [1.0, 1.0, 1.0, 1.0],
+                });
+            }
+        }
+
+        // 生成索引
+        for ring in 0..rings {
+            for seg in 0..segments {
+                let current = ring * (segments + 1) + seg;
+                let next = current + segments + 1;
+
+                indices.push(current);
+                indices.push(next);
+                indices.push(current + 1);
+
+                indices.push(current + 1);
+                indices.push(next);
+                indices.push(next + 1);
+            }
+        }
+
+        let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("sphere vertex buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("sphere index buffer"),
+            contents: bytemuck::cast_slice(&indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        GpuMesh {
+            vertex_buffer,
+            index_buffer,
+            vertex_count: vertices.len() as u32,
+            index_count: indices.len() as u32,
+            primitives: vec![MeshPrimitive {
+                index_start: 0,
+                index_count: indices.len() as u32,
+                material_index: 0,
+            }],
+        }
+    }
+}
+
 impl RendererTrait for MainRenderer {
-    fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C, window: &'static Window) -> Self {
+    fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C, window: &'static Window, models_base_path: &str) -> Self {
         let device = ctx.device();
         let config = ctx.config();
 
@@ -168,6 +330,7 @@ impl RendererTrait for MainRenderer {
             device: device.clone(),
             queue: ctx.queue().clone(),
             config: config.clone(),
+            models_base_path: models_base_path.to_string(),
             material_cache: HashMap::new(),
             shader_cache: HashMap::new(),
             texture_cache: HashMap::new(),
@@ -224,23 +387,50 @@ impl RendererTrait for MainRenderer {
         use crate::graphics::ModelLoaderTrait;
         
         // 不清空 ui_objects，保留应用在 on_start 中注册的 UI（如 ProjectOpener）
+        self.model_objects.clear();
         self.lines.clear();
         self.point_lights.clear();
+
+        // 确保内置几何体已生成
+        self.ensure_builtin_meshes();
 
         // Query all renderable entities with Transform and MeshRenderable
         let mut query = world.query::<(&Transform, &MeshRenderable)>();
         for (transform, mesh) in query.iter(world) {
             // Auto-load model if not in cache
             if !self.model_cache.contains_key(&mesh.mesh_id) {
-                let model_path = format!("assets/models/{}", mesh.mesh_id);
-                match crate::graphics::ModelLoader::load_gltf(&self.device, &self.queue, &model_path) {
-                    Ok(gpu_model) => {
-                        tracing::info!("Auto-loaded model: {}", mesh.mesh_id);
-                        self.model_cache.insert(mesh.mesh_id.clone(), Arc::new(gpu_model));
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to auto-load model {}: {}", model_path, e);
+                // 检查是否是内置网格
+                if mesh.mesh_id == "cube" || mesh.mesh_id == "sphere" {
+                    // 使用内置网格
+                    if let Some(mesh_res) = self.mesh_cache.get(&mesh.mesh_id) {
+                        let mesh_clone = (**mesh_res).clone();
+                        let model = Arc::new(crate::graphics::GpuModel {
+                            meshes: vec![mesh_clone],
+                            material_names: vec!["default".to_string()],
+                            root_nodes: vec![crate::graphics::ModelNode {
+                                transform: engine_core::ecs::Transform::default(),
+                                mesh_index: Some(0),
+                                children: vec![],
+                            }],
+                            name: mesh.mesh_id.clone(),
+                        });
+                        self.model_cache.insert(mesh.mesh_id.clone(), model);
+                    } else {
+                        tracing::warn!("Builtin mesh {} not found", mesh.mesh_id);
                         continue;
+                    }
+                } else {
+                    // 从文件加载
+                    let model_path = format!("{}/{}", self.models_base_path, mesh.mesh_id);
+                    match crate::graphics::ModelLoader::load_gltf(&self.device, &self.queue, &model_path) {
+                        Ok(gpu_model) => {
+                            tracing::info!("Auto-loaded model: {}", mesh.mesh_id);
+                            self.model_cache.insert(mesh.mesh_id.clone(), Arc::new(gpu_model));
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to auto-load model {}: {}", model_path, e);
+                            continue;
+                        }
                     }
                 }
             }
@@ -311,18 +501,7 @@ impl RendererTrait for MainRenderer {
         // 不清空 ui_objects，保留应用注册的 UI
         self.lines.clear();
 
-        // Hardcode adding monkey at origin
-        if let Some(model) = self.model_cache.get("monkey") {
-            self.model_objects.push((
-                model.clone(),
-                engine_core::ecs::Transform {
-                    translation: glam::Vec3::new(1.0, 0.0, 0.0),
-                    rotation: glam::Quat::IDENTITY,
-                    scale: glam::Vec3::ONE,
-                },
-                None, // no material override for hardcoded objects
-            ));
-        }
+        // 硬编码对象现在由场景文件管理，不再在此处添加
 
         let has_engine_stats = self.ui_objects.iter().any(|c| c.id() == "engine_stats");
         if !has_engine_stats {

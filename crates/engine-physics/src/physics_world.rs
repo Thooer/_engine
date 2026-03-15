@@ -101,10 +101,16 @@ pub fn init_bodies(world: &mut World) {
         }).collect()
     };
 
-    // 需要创建碰撞体的实体
-    let to_create: Vec<_> = body_handles.iter()
-        .filter_map(|(e, h)| col_map.get(e).map(|c| (*e, *h, c)))
-        .collect();
+    // 需要创建碰撞体的实体（包括 scale 信息）
+    let to_create: Vec<_> = {
+        let mut q = world.query::<&Transform>();
+        body_handles.iter()
+            .filter_map(|(e, h)| {
+                let transform = q.get(&*world, *e).ok()?;
+                col_map.get(e).map(|c| (*e, *h, c, *transform))
+            })
+            .collect()
+    };
 
     // 创建碰撞体
     let insert_data: Vec<_> = {
@@ -113,11 +119,19 @@ pub fn init_bodies(world: &mut World) {
         let mut ctx = world.get_resource_mut::<PhysicsContext>().expect("no ctx");
         let mut res = Vec::new();
 
-        for (entity, bh, col) in &to_create {
+        for (entity, bh, col, transform) in &to_create {
+            // 应用 scale 到碰撞体尺寸
             let s = match col.shape {
-                crate::ColliderShape::Ball { radius } => ColliderBuilder::ball(radius),
+                crate::ColliderShape::Ball { radius } => {
+                    let scaled_radius = radius * transform.scale.x.max(transform.scale.y).max(transform.scale.z);
+                    ColliderBuilder::ball(scaled_radius)
+                },
                 crate::ColliderShape::Cuboid { half_extents } => {
-                    ColliderBuilder::cuboid(half_extents.x, half_extents.y, half_extents.z)
+                    ColliderBuilder::cuboid(
+                        half_extents.x * transform.scale.x,
+                        half_extents.y * transform.scale.y,
+                        half_extents.z * transform.scale.z
+                    )
                 }
             };
 
@@ -131,7 +145,7 @@ pub fn init_bodies(world: &mut World) {
             }
         }
 
-        let with_col: Vec<_> = to_create.iter().map(|(e, _, _)| *e).collect();
+        let with_col: Vec<_> = to_create.iter().map(|(e, _, _, _)| *e).collect();
         for (e, h) in &body_handles {
             if !with_col.contains(e) {
                 res.push((*e, *h, None));
@@ -161,8 +175,48 @@ pub fn step(world: &mut World, fixed_dt: f32, substeps: u32) {
     }
 }
 
-/// 同步物理位置到 ECS Transform
+/// 同步 Kinematic 刚体位置（ECS → 物理）
+/// Kinematic 刚体由脚本控制位置，需要同步到物理引擎
+pub fn sync_kinematic_bodies(world: &mut World) {
+    // 先收集所有需要同步的数据，避免借用冲突
+    let sync_data: Vec<_> = {
+        let mut q = world.query::<(&PhysicsHandle, &Transform)>();
+        q.iter(world)
+            .filter_map(|(handle, transform)| {
+                Some((handle.rigid_body_handle, *transform))
+            })
+            .collect()
+    };
+
+    // 然后在独立的块中处理物理同步
+    if !sync_data.is_empty() {
+        let mut ctx = match world.get_resource_mut::<PhysicsContext>() {
+            Some(c) => c,
+            None => return,
+        };
+
+        let rbs = &mut ctx.rigid_body_set;
+
+        for (handle, transform) in sync_data {
+            if let Some(body) = rbs.get_mut(handle) {
+                if body.body_type() == rapier3d::prelude::RigidBodyType::KinematicPositionBased {
+                    body.set_next_kinematic_translation(transform.translation);
+                    body.set_next_kinematic_rotation(transform.rotation);
+                }
+            }
+        }
+    }
+}
+
+/// 同步物理位置到 ECS Transform（物理 → ECS）
+/// 只同步 Dynamic/Fixed 刚体，Kinematic 由 sync_kinematic_bodies 处理
 pub fn sync_transforms(world: &mut World) {
+    // 这是旧版兼容函数，现在只同步 dynamic/fixed
+    sync_dynamic_transforms(world);
+}
+
+/// 同步 Dynamic/Fixed 刚体位置到 ECS（物理 → ECS）
+pub fn sync_dynamic_transforms(world: &mut World) {
     use glam::Quat;
 
     let physics_data: Vec<(rapier3d::prelude::RigidBodyHandle, f32, f32, f32, f32, f32, f32, f32)> = {
@@ -183,6 +237,10 @@ pub fn sync_transforms(world: &mut World) {
         let mut data = Vec::new();
         for handle in handles {
             if let Some(body) = rbs.get(handle) {
+                // 只同步 Dynamic/Fixed，跳过 Kinematic
+                if body.body_type() == rapier3d::prelude::RigidBodyType::KinematicPositionBased {
+                    continue;
+                }
                 let p = body.translation();
                 let r = body.rotation();
                 data.push((handle, p.x, p.y, p.z, r.x, r.y, r.z, r.w));
@@ -205,7 +263,7 @@ pub fn sync_transforms(world: &mut World) {
 }
 
 /// 完整的物理更新：初始化 + 步进 + 同步
-/// 
+///
 /// 这是一个简化的更新函数，适合大多数用例
 pub fn update(world: &mut World, _dt: f32) {
     let needs_init = {
@@ -219,7 +277,7 @@ pub fn update(world: &mut World, _dt: f32) {
     // 第一次调用时初始化
     if needs_init {
         init_bodies(world);
-        
+
         // 设置已初始化
         if let Some(mut cfg) = world.get_resource_mut::<PhysicsConfig>() {
             cfg.initialized = true;
@@ -234,6 +292,12 @@ pub fn update(world: &mut World, _dt: f32) {
         }
     };
 
+    // 同步 Kinematic 刚体位置（ECS → 物理）必须在物理步进之前
+    sync_kinematic_bodies(world);
+
+    // 执行物理步进
     step(world, fixed_dt, substeps);
-    sync_transforms(world);
+
+    // 同步物理位置到 ECS（物理 → ECS）
+    sync_dynamic_transforms(world);
 }

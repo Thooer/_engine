@@ -67,7 +67,7 @@ pub struct MeshPrimitive {
 /// GPU 网格资源
 ///
 /// 包含顶点/索引缓冲以及图元列表。
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GpuMesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,

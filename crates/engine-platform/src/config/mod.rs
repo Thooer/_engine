@@ -92,6 +92,13 @@ pub struct RunConfig {
     /// 相机控制模式
     #[serde(default = "default_camera_mode")]
     pub camera_mode: String,
+    /// 物理重力（Y轴分量），默认 -9.81
+    #[serde(default = "default_gravity")]
+    pub gravity_y: f32,
+}
+
+fn default_gravity() -> f32 {
+    -9.81
 }
 
 fn default_scene() -> String {

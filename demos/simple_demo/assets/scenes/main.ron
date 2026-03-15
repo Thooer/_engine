@@ -136,16 +136,19 @@
             grid: None,
         ),
         
-        // 下落立方体（动态）
+        // 程序化生成的立方体（受重力影响）
         (
-            name: Some("Cube"),
+            name: Some("CubeBuiltIn"),
             transform: Some((
-                translation: (-1.0, 4.0, 0.0),
-                rotation: (0.0, 0.0, 0.1, 0.995),
+                translation: (-2.0, 3.0, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
                 scale: (1.0, 1.0, 1.0),
             )),
             renderable: None,
-            mesh: None,
+            mesh: Some((
+                model: "cube",
+                material: None,
+            )),
             camera: None,
             physics: Some((
                 body_type: "dynamic",
@@ -162,17 +165,20 @@
             controller: None,
             grid: None,
         ),
-        
-        // 下落球体（动态）
+
+        // 程序化生成的球体（受重力影响）
         (
-            name: Some("Sphere"),
+            name: Some("SphereBuiltIn"),
             transform: Some((
-                translation: (1.0, 6.0, 0.0),
+                translation: (2.0, 3.0, 0.0),
                 rotation: (0.0, 0.0, 0.0, 1.0),
                 scale: (1.0, 1.0, 1.0),
             )),
             renderable: None,
-            mesh: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
             camera: None,
             physics: Some((
                 body_type: "dynamic",
@@ -183,6 +189,276 @@
                 density: 1.0,
                 half_extents: None,
                 radius: Some(0.5),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 额外添加的动态立方体 #1
+        (
+            name: Some("Cube1"),
+            transform: Some((
+                translation: (-3.0, 5.0, 0.0),
+                rotation: (0.0, 0.0, 0.1, 0.995),
+                scale: (0.8, 0.8, 0.8),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "cube",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "cuboid",
+                mass: Some(1.0),
+                friction: 0.5,
+                restitution: 0.5,
+                density: 1.0,
+                half_extents: Some((0.4, 0.4, 0.4)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 额外添加的动态立方体 #2
+        (
+            name: Some("Cube2"),
+            transform: Some((
+                translation: (3.0, 5.0, 0.0),
+                rotation: (0.0, 0.0, -0.1, 0.995),
+                scale: (0.8, 0.8, 0.8),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "cube",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "cuboid",
+                mass: Some(1.0),
+                friction: 0.5,
+                restitution: 0.5,
+                density: 1.0,
+                half_extents: Some((0.4, 0.4, 0.4)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 额外添加的动态立方体 #3
+        (
+            name: Some("Cube3"),
+            transform: Some((
+                translation: (0.0, 6.0, 2.0),
+                rotation: (0.1, 0.0, 0.0, 0.995),
+                scale: (0.8, 0.8, 0.8),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "cube",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "cuboid",
+                mass: Some(1.0),
+                friction: 0.5,
+                restitution: 0.5,
+                density: 1.0,
+                half_extents: Some((0.4, 0.4, 0.4)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 额外添加的动态立方体 #4
+        (
+            name: Some("Cube4"),
+            transform: Some((
+                translation: (0.0, 6.0, -2.0),
+                rotation: (0.0, 0.1, 0.0, 0.995),
+                scale: (0.8, 0.8, 0.8),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "cube",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "cuboid",
+                mass: Some(1.0),
+                friction: 0.5,
+                restitution: 0.5,
+                density: 1.0,
+                half_extents: Some((0.4, 0.4, 0.4)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 额外添加的动态球体 #1
+        (
+            name: Some("Sphere1"),
+            transform: Some((
+                translation: (-1.5, 5.5, 1.5),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.6, 0.6, 0.6),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(0.8),
+                friction: 0.3,
+                restitution: 0.8,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.3),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 额外添加的动态球体 #2
+        (
+            name: Some("Sphere2"),
+            transform: Some((
+                translation: (1.5, 5.5, -1.5),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.6, 0.6, 0.6),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(0.8),
+                friction: 0.3,
+                restitution: 0.8,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.3),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 额外添加的动态球体 #3
+        (
+            name: Some("Sphere3"),
+            transform: Some((
+                translation: (1.5, 5.5, 1.5),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.7, 0.7, 0.7),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(1.2),
+                friction: 0.3,
+                restitution: 0.8,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.35),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 额外添加的动态球体 #4
+        (
+            name: Some("Sphere4"),
+            transform: Some((
+                translation: (-1.5, 5.5, -1.5),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.7, 0.7, 0.7),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(1.2),
+                friction: 0.3,
+                restitution: 0.8,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.35),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 额外添加的动态球体 #5
+        (
+            name: Some("Sphere5"),
+            transform: Some((
+                translation: (0.0, 7.0, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.5, 0.5, 0.5),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(0.5),
+                friction: 0.3,
+                restitution: 0.9,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.25),
             )),
             line: None,
             light: None,
@@ -211,7 +487,7 @@
             grid: None,
         ),
         
-        // 猴子模型
+        // 猴子模型（静态碰撞体）
         (
             name: Some("Monkey"),
             transform: Some((
@@ -225,7 +501,370 @@
                 material: None,
             )),
             camera: None,
-            physics: None,
+            physics: Some((
+                body_type: "fixed",
+                collider_shape: "ball",
+                mass: None,
+                friction: 0.5,
+                restitution: 0.3,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.5),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 卫星实体（由脚本控制运动，静态碰撞体）
+        // 名称以 Satellite 开头，会自动添加 Satellite 组件
+        (
+            name: Some("Satellite1"),
+            transform: Some((
+                translation: (1.5, 0.5, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.35, 0.35, 0.35),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "monkey.glb",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "kinematic",
+                collider_shape: "ball",
+                mass: None,
+                friction: 0.5,
+                restitution: 0.3,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.2),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 卫星 #2
+        (
+            name: Some("Satellite2"),
+            transform: Some((
+                translation: (-1.5, 0.5, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.35, 0.35, 0.35),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "monkey.glb",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "kinematic",
+                collider_shape: "ball",
+                mass: None,
+                friction: 0.5,
+                restitution: 0.3,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.2),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 卫星 #3
+        (
+            name: Some("Satellite3"),
+            transform: Some((
+                translation: (0.0, 0.5, 1.5),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.35, 0.35, 0.35),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "monkey.glb",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "kinematic",
+                collider_shape: "ball",
+                mass: None,
+                friction: 0.5,
+                restitution: 0.3,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.2),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 更多动态立方体 #5-8
+        (
+            name: Some("Cube5"),
+            transform: Some((
+                translation: (-2.5, 8.0, 1.0),
+                rotation: (0.1, 0.2, 0.0, 0.97),
+                scale: (0.7, 0.7, 0.7),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "cube",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "cuboid",
+                mass: Some(1.0),
+                friction: 0.5,
+                restitution: 0.4,
+                density: 1.0,
+                half_extents: Some((0.35, 0.35, 0.35)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        (
+            name: Some("Cube6"),
+            transform: Some((
+                translation: (2.5, 8.5, -1.0),
+                rotation: (-0.1, 0.15, 0.1, 0.97),
+                scale: (0.65, 0.65, 0.65),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "cube",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "cuboid",
+                mass: Some(1.0),
+                friction: 0.5,
+                restitution: 0.4,
+                density: 1.0,
+                half_extents: Some((0.325, 0.325, 0.325)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        (
+            name: Some("Cube7"),
+            transform: Some((
+                translation: (0.0, 9.0, 2.5),
+                rotation: (0.0, 0.0, 0.2, 0.98),
+                scale: (0.6, 0.6, 0.6),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "cube",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "cuboid",
+                mass: Some(0.8),
+                friction: 0.5,
+                restitution: 0.4,
+                density: 1.0,
+                half_extents: Some((0.3, 0.3, 0.3)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        (
+            name: Some("Cube8"),
+            transform: Some((
+                translation: (1.0, 8.0, -2.5),
+                rotation: (0.15, 0.1, 0.0, 0.98),
+                scale: (0.75, 0.75, 0.75),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "cube",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "cuboid",
+                mass: Some(1.2),
+                friction: 0.5,
+                restitution: 0.4,
+                density: 1.0,
+                half_extents: Some((0.375, 0.375, 0.375)),
+                radius: None,
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        // 更多动态球体 #6-10
+        (
+            name: Some("Sphere6"),
+            transform: Some((
+                translation: (-1.0, 9.5, 0.5),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.55, 0.55, 0.55),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(0.9),
+                friction: 0.3,
+                restitution: 0.8,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.275),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        (
+            name: Some("Sphere7"),
+            transform: Some((
+                translation: (1.0, 10.0, -0.5),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.45, 0.45, 0.45),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(0.7),
+                friction: 0.3,
+                restitution: 0.85,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.225),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        (
+            name: Some("Sphere8"),
+            transform: Some((
+                translation: (0.0, 10.5, 1.5),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.5, 0.5, 0.5),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(1.0),
+                friction: 0.3,
+                restitution: 0.8,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.25),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        (
+            name: Some("Sphere9"),
+            transform: Some((
+                translation: (-0.5, 11.0, -1.5),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.4, 0.4, 0.4),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(0.6),
+                friction: 0.3,
+                restitution: 0.9,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.2),
+            )),
+            line: None,
+            light: None,
+            controller: None,
+            grid: None,
+        ),
+
+        (
+            name: Some("Sphere10"),
+            transform: Some((
+                translation: (0.5, 11.5, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (0.45, 0.45, 0.45),
+            )),
+            renderable: None,
+            mesh: Some((
+                model: "sphere",
+                material: None,
+            )),
+            camera: None,
+            physics: Some((
+                body_type: "dynamic",
+                collider_shape: "ball",
+                mass: Some(0.75),
+                friction: 0.3,
+                restitution: 0.85,
+                density: 1.0,
+                half_extents: None,
+                radius: Some(0.225),
+            )),
             line: None,
             light: None,
             controller: None,

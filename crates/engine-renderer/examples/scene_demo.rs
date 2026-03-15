@@ -24,7 +24,7 @@ struct SceneDemoApp {
 
 impl App for SceneDemoApp {
     fn on_start(&mut self, engine: &mut Engine) {
-        let mut renderer = MainRenderer::new(engine.ctx(), engine.window());
+        let mut renderer = MainRenderer::new(engine.ctx(), engine.window(), "assets/models");
         
         // 测试 Material System
         let device = engine.ctx().device();

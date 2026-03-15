@@ -9,12 +9,18 @@ use std::path::PathBuf;
 use std::fs;
 use std::io;
 use std::sync::{Arc, Mutex};
-use engine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait, WasmRuntime};
+
+use engine_app::{App, AppConfig, Engine, EngineTrait, RunApp, RunAppTrait};
 use engine_app::plugins::{render_plugin, physics_plugin};
 use engine_app::SystemSchedule;
 use engine_core::input::{InputCode, InputStateExt};
+use engine_core::ecs::{Camera3D, Transform, MeshRenderable, Renderable, Satellite};
 use engine_platform::config::{ProjectConfig, ConfigLoader};
 use engine_renderer::grid::spawn_grid_system;
+use engine_script::{WasmScriptHost, EcsScriptContext, FrameData, ScriptHost};
+use glam::Vec3;
+use bevy_ecs::prelude::{World, Entity};
+
 use rfd::FileDialog;
 use egui::Context;
 use serde::Deserialize;
@@ -102,7 +108,9 @@ impl GlobalConfig {
 struct ToyEngineApp {
     project_path: PathBuf,
     project_config: ProjectConfig,
-    wasm_runtime: Option<WasmRuntime>,
+    /// 新的脚本主机（支持 ECS 交互）- 直接存储以便访问
+    script_host: Option<WasmScriptHost>,
+    /// 卫星实体现在由场景文件管理，不再在此处存储
     shared_state: SharedState,
 }
 
@@ -116,17 +124,17 @@ impl ToyEngineApp {
             tracing::info!("  script: {}", script);
         }
 
-        // 尝试加载 WASM 脚本
-        let mut wasm_runtime: Option<WasmRuntime> = None;
+        // 尝试加载 WASM 脚本（新的脚本系统）
+        let mut script_host: Option<WasmScriptHost> = None;
         if let Some(ref script_path) = project_config.run.script {
             let script_abs = project_path.join(script_path);
             if script_abs.exists() {
-                match WasmRuntime::new() {
-                    Ok(mut runtime) => {
-                        match runtime.load(&script_abs) {
+                match WasmScriptHost::new("game_script") {
+                    Ok(mut host) => {
+                        match host.load(&script_abs) {
                             Ok(_) => {
-                                tracing::info!("WASM script loaded successfully");
-                                wasm_runtime = Some(runtime);
+                                tracing::info!("WASM script loaded successfully (new system)");
+                                script_host = Some(host);
                             }
                             Err(e) => {
                                 tracing::error!("Failed to load WASM script: {}", e);
@@ -134,7 +142,7 @@ impl ToyEngineApp {
                         }
                     }
                     Err(e) => {
-                        tracing::error!("Failed to create WASM runtime: {}", e);
+                        tracing::error!("Failed to create script host: {}", e);
                     }
                 }
             } else {
@@ -145,7 +153,7 @@ impl ToyEngineApp {
         Self {
             project_path,
             project_config,
-            wasm_runtime,
+            script_host,
             shared_state,
         }
     }
@@ -156,7 +164,7 @@ impl ToyEngineApp {
 
         // 1. 清空 ECS 世界中的实体
         {
-            let mut world = engine.world_mut();
+            let world = engine.world_mut();
             let entities: Vec<bevy_ecs::entity::Entity> = world.query::<bevy_ecs::entity::Entity>()
                 .iter(&world)
                 .collect();
@@ -165,26 +173,35 @@ impl ToyEngineApp {
                 world.despawn(*entity);
             }
             tracing::info!("Cleared {} entities from ECS world", count);
+            // 卫星实体现在由场景文件管理，不需要手动清理
+
+            // 重新插入 InputState（清空世界后会丢失）
+            world.insert_resource(engine_core::input::InputState::new());
         }
 
         // 2. 重新加载项目配置
         self.project_path = new_project_path.clone();
         self.project_config = ProjectConfig::load_or_default(&new_project_path);
 
-        // 3. 重新加载 WASM 脚本
-        self.wasm_runtime = None;
+        // 3. 重新加载 WASM 脚本（新的脚本系统）
+        self.script_host = None;
         if let Some(ref script_path) = self.project_config.run.script {
             let script_abs = new_project_path.join(script_path);
             if script_abs.exists() {
-                match WasmRuntime::new() {
-                    Ok(mut runtime) => {
-                        if let Ok(_) = runtime.load(&script_abs) {
-                            tracing::info!("WASM script reloaded successfully");
-                            self.wasm_runtime = Some(runtime);
+                match WasmScriptHost::new("game_script") {
+                    Ok(mut host) => {
+                        match host.load(&script_abs) {
+                            Ok(_) => {
+                                tracing::info!("WASM script reloaded successfully (new system)");
+                                self.script_host = Some(host);
+                            }
+                            Err(e) => {
+                                tracing::error!("Failed to load WASM script: {}", e);
+                            }
                         }
                     }
                     Err(e) => {
-                        tracing::error!("Failed to create WASM runtime: {}", e);
+                        tracing::error!("Failed to create script host: {}", e);
                     }
                 }
             }
@@ -193,14 +210,19 @@ impl ToyEngineApp {
         // 4. 重新加载场景和材质
         let project_assets = resolve_project_assets(&new_project_path, &self.project_config.run.assets_dir);
         let scene_path = project_assets.join("scenes/main.ron");
+
         let materials_path = project_assets.join("materials");
+        let models_path = project_assets.join("models");
 
         // 重新配置渲染插件
         let mut schedule = SystemSchedule::new();
-        physics_plugin().build(&mut schedule);
+        physics_plugin()
+            .with_gravity(self.project_config.run.gravity_y)
+            .build(&mut schedule);
 
         let render_pl = render_plugin()
             .with_materials(materials_path.to_string_lossy().as_ref())
+            .with_models(models_path.to_string_lossy().as_ref())
             .with_scene(scene_path.to_string_lossy().as_ref());
 
         render_pl.setup(engine);
@@ -236,13 +258,17 @@ fn resolve_project_assets(project_path: &PathBuf, assets_dir: &str) -> PathBuf {
 impl App for ToyEngineApp {
     fn systems(&mut self) -> SystemSchedule {
         let mut schedule = SystemSchedule::new();
-        physics_plugin().build(&mut schedule);
+        // 从项目配置中读取重力参数
+        physics_plugin()
+            .with_gravity(self.project_config.run.gravity_y)
+            .build(&mut schedule);
 
         // 计算项目 assets 目录的绝对路径
         let project_assets = resolve_project_assets(&self.project_path, &self.project_config.run.assets_dir);
 
         let scene_path = project_assets.join("scenes/main.ron");
         let materials_path = project_assets.join("materials");
+        let models_path = project_assets.join("models");
 
         tracing::info!("Project assets: {:?}", project_assets);
         tracing::info!("Loading materials from: {:?}", materials_path);
@@ -250,6 +276,7 @@ impl App for ToyEngineApp {
 
         render_plugin()
             .with_materials(materials_path.to_string_lossy().as_ref())
+            .with_models(models_path.to_string_lossy().as_ref())
             .with_scene(scene_path.to_string_lossy().as_ref())
             .build(&mut schedule);
 
@@ -262,6 +289,7 @@ impl App for ToyEngineApp {
 
         let scene_path = project_assets.join("scenes/main.ron");
         let materials_path = project_assets.join("materials");
+        let models_path = project_assets.join("models");
 
         tracing::info!("Project assets: {:?}", project_assets);
         tracing::info!("Loading materials from: {:?}", materials_path);
@@ -269,6 +297,7 @@ impl App for ToyEngineApp {
 
         let render_plugin = render_plugin()
             .with_materials(materials_path.to_string_lossy().as_ref())
+            .with_models(models_path.to_string_lossy().as_ref())
             .with_scene(scene_path.to_string_lossy().as_ref());
 
         render_plugin.setup(engine);
@@ -302,35 +331,59 @@ impl App for ToyEngineApp {
                     4 => InputCode::Key4,
                     _ => continue,
                 };
-                if ecs_input.is_pressed(key) {
+                let pressed = ecs_input.is_pressed(key);
+                if pressed {
                     input_mask |= 1 << (digit - 1);
                 }
             }
         }
 
-        // 运行 WASM 脚本更新
-        if let Some(ref mut runtime) = self.wasm_runtime {
-            if runtime.is_loaded() {
-                // 轨道相机参数
-                let radius = 8.0;
-                let height = 3.0;
-                let speed = 0.5;  // 弧度/秒
+        // 运行新的脚本系统 - 脚本可以控制任意实体
+        // 由于 World 不能 clone，我们这里简化处理：
+        // 脚本现在可以直接在 engine.world_mut() 上操作
+        // 兼容模式：旧的 WASM 仍然可以通过 get_camera_x/y/z 返回相机位置
+        if let Some(ref mut host) = self.script_host {
+            // 创建一个临时的 EcsScriptContext，传入当前帧的 input_mask 供脚本切换镜头等
+            let frame_data = FrameData::new(dt_seconds, 0.0, 0).with_input_mask(input_mask);
+            let mut script_ctx = EcsScriptContext::new(World::new(), frame_data);
 
-                // 调用 WASM 函数（传入 input_mask）
-                match runtime.call_camera_func("update", dt_seconds, 0, radius, height, speed, input_mask) {
-                    Ok(pos) => {
-                        // 更新相机位置
-                        let mut query = engine.core.world.query::<&mut engine_core::ecs::Camera3D>();
-                        if let Some(mut camera) = query.iter_mut(&mut engine.core.world).next() {
-                            camera.position = pos;
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!("WASM update failed: {}", e);
-                    }
-                }
+            // 调用脚本更新
+            if let Err(e) = host.update(&mut script_ctx) {
+                tracing::warn!("Script update failed: {}", e);
+            }
+
+            // 旧版兼容：从 WasmScriptHost 获取相机位置
+            // 注意：新架构下脚本应该直接修改 ECS 中的 Camera3D 组件
+            let pos = host.get_camera_position();
+            let mut query = engine.core.world.query::<&mut Camera3D>();
+            if let Some(mut camera) = query.iter_mut(&mut engine.core.world).next() {
+                camera.position = pos;
+            }
+
+            // 卫星实体现在由场景文件管理
+            // 查询 Satellite 组件的实体，由脚本更新位置
+            let mut satellite_query = engine.core.world.query::<(&Satellite, &mut Transform)>();
+            let world = engine.world_mut();
+            for (i, (_, mut transform)) in satellite_query.iter_mut(world).enumerate() {
+                let x = host.get_satellite_x(i as i32);
+                let z = host.get_satellite_z(i as i32);
+                let (r, g, b) = host.get_satellite_color(i as i32);
+                transform.translation = Vec3::new(x, 0.5, z);
+                // 注意：颜色更新需要 Renderable 组件
             }
         }
+    }
+}
+
+/// 获取脚本的相机位置（用于引擎查询）
+/// 由于脚本已经修改了 ECS 中的实体，这里从 ECS 查询相机位置
+fn get_script_camera_position_from_ecs(engine: &mut Engine) -> Vec3 {
+    // 从 ECS 查询相机位置
+    let mut query = engine.core.world.query::<&Camera3D>();
+    if let Some(camera) = query.iter(&engine.core.world).next() {
+        camera.position
+    } else {
+        Vec3::new(0.0, 5.0, 10.0)
     }
 }
 

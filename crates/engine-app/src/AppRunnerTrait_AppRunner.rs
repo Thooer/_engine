@@ -9,18 +9,17 @@ use super::{App, AppConfig, AppRunner, AppRunnerTrait, Engine, SystemSchedule};
 
 impl<A: App> AppRunnerTrait<A> for AppRunner<A> {
     fn new(config: AppConfig, mut app: A) -> Self {
-        let mut world = World::new();
+        // 创建 EngineCore（内部会创建新的 World）
+        let mut core = EngineCore::new(config.clone());
 
-        // 将 InputState 注入 ECS 作为 Resource（现在只有这一处）
-        world.insert_resource(InputState::new());
+        // 将 InputState 注入 ECS 作为 Resource
+        core.world.insert_resource(InputState::new());
 
-        app.configure_ecs(&mut world);
+        // 让 App 配置 ECS
+        app.configure_ecs(&mut core.world);
 
         // 获取系统调度器
         let schedule = app.systems();
-
-        // 创建 EngineCore（需要克隆 config）
-        let core = EngineCore::new(config.clone());
 
         Self {
             config,
