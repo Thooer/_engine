@@ -160,3 +160,12 @@ pub trait ModelLoaderTrait {
 
 #[path = "ModelLoaderTrait_ModelLoader.rs"]
 mod gpu_model_loader;
+
+// ============================================================================
+//  WorldLoader
+// ============================================================================
+
+#[path = "WorldLoader.rs"]
+mod WorldLoader;
+
+pub use self::WorldLoader::collect_from_world;

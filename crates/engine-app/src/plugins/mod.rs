@@ -223,7 +223,7 @@ impl RenderPlugin {
                 }
 
                 // 收集 ECS 渲染对象
-                renderer.collect_from_world(world);
+                engine_renderer::loaders::collect_from_world(world, &mut renderer);
             },
             SystemStage::Render,
         );

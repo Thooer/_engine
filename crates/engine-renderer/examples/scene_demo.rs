@@ -4,7 +4,7 @@ use engine_renderer::renderer::{
     MainRenderer, RendererTrait, SurfaceContextTrait,
 };
 use engine_renderer::loaders::{
-    ModelLoader, ModelLoaderTrait, MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait
+    ModelLoader, ModelLoaderTrait, MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait, WorldLoader, WorldLoaderTrait
 };
 use engine_renderer::uniforms::{*};
 // use engine_core::camera::camera3d_fly_wasd;
@@ -139,7 +139,7 @@ impl App for SceneDemoApp {
             camera_uniform.update(engine.ctx().queue(), &camera, engine.ctx().config());
         }
         
-        renderer.collect_from_world(engine.world_mut());
+        collect_from_world(engine.world_mut(), renderer);
         renderer.render(engine.ctx_mut()).unwrap();
     }
 }

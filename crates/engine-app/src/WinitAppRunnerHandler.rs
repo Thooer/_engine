@@ -113,7 +113,7 @@ impl<A: App> ApplicationHandler for AppRunner<A> {
                 
                 // P2: 自动调用渲染
                 if let Some(mut renderer) = self.engine.main_renderer.take() {
-                    renderer.collect_from_world(&mut self.engine.core.world);
+                    engine_renderer::loaders::collect_from_world(&mut self.engine.core.world, &mut renderer);
                     
                     let ctx = self.engine.ctx_mut();
                     let _ = renderer.render(ctx);

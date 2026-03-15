@@ -4,7 +4,7 @@ use engine_renderer::renderer::{
     MainRenderer, RendererTrait, SurfaceContextTrait,
 };
 use engine_renderer::loaders::{
-    ModelLoader, ModelLoaderTrait, MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait
+    ModelLoader, ModelLoaderTrait, MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait, collect_from_world
 };
 use engine_renderer::uniforms::*;
 use engine_core::ecs::{Camera3D, Transform};
@@ -214,9 +214,10 @@ impl App for PhysicsDemoApp {
                 .and_then(|any| any.downcast_ref::<CameraGpuUniform>()) {
 
                 camera_uniform.update(engine.ctx().queue(), camera, engine.ctx().config());
+            }
         }
 
-        renderer.collect_from_world(engine.world_mut());
+        collect_from_world(engine.world_mut(), renderer);
         renderer.render(engine.ctx_mut()).unwrap();
     }
 }
