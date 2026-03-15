@@ -378,7 +378,14 @@ fn spawn_entity(
     world: &mut World,
 ) -> Result<(), SceneError> {
     let mut commands = world.spawn_empty();
-    
+
+    // 如果实体名称以 "Satellite" 开头，添加 Satellite 标记组件
+    if let Some(ref name) = data.name {
+        if name.starts_with("Satellite") {
+            commands.insert(engine_core::ecs::Satellite);
+        }
+    }
+
     // Transform
     if let Some(t) = data.transform {
         commands.insert(engine_core::ecs::Transform {

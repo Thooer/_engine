@@ -1,0 +1,21 @@
+[package]
+name = "engine-script"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Team"]
+description = "ToyEngine 脚本系统 - WASM 运行时与脚本抽象"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+engine-core = { path = "../engine-core" }
+
+bevy_ecs = { workspace = true }
+glam = { workspace = true }
+tracing = "0.1"
+thiserror = "2.0"
+wasmer = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+bincode = { workspace = true }
+
+[features]
+default = []

@@ -11,6 +11,7 @@ members = [
     "crates/engine-events",
     "crates/engine-scene",
     "crates/engine-platform",
+    "crates/engine-script",
 ]
 exclude = [
     "demos",
@@ -80,6 +81,7 @@ crossbeam-channel = "0.5"
 # WASM 运行时（脚本系统）
 wasmtime = "22.0"
 wasm-bindgen = "0.2"
+wasmer = "4"
 
 [profile.dev]
 opt-level = 0

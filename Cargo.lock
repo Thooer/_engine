@@ -1494,9 +1494,11 @@ dependencies = [
  "engine-platform",
  "engine-renderer",
  "engine-scene",
+ "engine-script",
  "glam 0.30.10",
  "pollster",
  "rfd",
+ "serde",
  "toml",
  "tracing",
  "tracing-subscriber",
@@ -1613,6 +1615,20 @@ dependencies = [
  "ron",
  "serde",
  "tracing",
+]
+
+[[package]]
+name = "engine-script"
+version = "0.1.0"
+dependencies = [
+ "bevy_ecs",
+ "bincode",
+ "engine-core",
+ "glam 0.30.10",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+ "wasmer",
 ]
 
 [[package]]

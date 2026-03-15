@@ -34,7 +34,7 @@ impl App for PhysicsDemoApp {
 
     fn on_start(&mut self, engine: &mut Engine) {
         // Create renderer
-        let mut renderer = MainRenderer::new(engine.ctx(), engine.window());
+        let mut renderer = MainRenderer::new(engine.ctx(), engine.window(), "assets/models");
 
         // Load materials
         let device = engine.ctx().device();

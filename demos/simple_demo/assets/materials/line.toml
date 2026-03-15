@@ -7,4 +7,4 @@ blend_mode = "AlphaBlend"
 depth_write = false
 cull_mode = "None"
 topology = "LineList"
-depth_compare = "Always"
+depth_compare = "Less"

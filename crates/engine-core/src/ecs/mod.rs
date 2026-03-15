@@ -93,6 +93,14 @@ impl Default for Camera3D {
 #[reflect(Component)]
 pub struct PhysicsQuery;
 
+/// 卫星标记组件 - 用于标记由脚本控制的卫星实体
+///
+/// 场景文件中声明的卫星实体会添加此组件，
+/// 脚本系统可以查询并更新这些实体的位置
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
+pub struct Satellite;
+
 // ============================================================================
 // 渲染组件 - 从 engine-renderer 移入
 // ============================================================================

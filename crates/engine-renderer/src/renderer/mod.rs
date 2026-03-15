@@ -137,6 +137,9 @@ pub struct MainRenderer {
     pub(crate) queue: wgpu::Queue,
     pub(crate) config: wgpu::SurfaceConfiguration,
     
+    // 模型加载基础路径（可配置，用于项目自己的模型目录）
+    pub models_base_path: String,
+    
     // Resource caches
     pub model_cache: HashMap<String, Arc<GpuModel>>,
     pub mesh_cache: HashMap<String, Arc<GpuMesh>>,
@@ -178,7 +181,7 @@ pub struct MainRenderer {
 }
 
 pub trait RendererTrait {
-    fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C, window: &'static Window) -> Self;
+    fn new<C: SurfaceContextTrait + ?Sized>(ctx: &C, window: &'static Window, models_base_path: &str) -> Self;
     fn resize<C: SurfaceContextTrait + ?Sized>(&mut self, ctx: &C);
     fn handle_event(&mut self, window: &Window, event: &WindowEvent) -> bool { false }
 

@@ -4,6 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -17,10 +18,51 @@ pub enum ConfigError {
     NotFound(PathBuf),
 }
 
-pub trait ConfigLoader: Sized + Default {
+/// 配置加载器 Trait
+///
+/// 提供统一的配置加载接口，支持：
+/// - 从 TOML 文件加载配置
+/// - 配置不存在时使用默认值
+/// - 运行时检查配置文件是否存在
+pub trait ConfigLoader: Sized + Default + DeserializeOwned {
+    /// 从指定路径加载配置
+    ///
+    /// # Arguments
+    /// * `path` - 配置文件路径（不含文件名，文件名由具体实现决定）
+    ///
+    /// # Returns
+    /// * `Ok(Config)` - 加载成功
+    /// * `Err(ConfigError)` - 加载失败
     fn load(path: &Path) -> Result<Self, ConfigError>;
+
+    /// 加载配置，失败时返回默认值
+    ///
+    /// # Arguments
+    /// * `path` - 配置文件目录路径
+    ///
+    /// # Note
+    /// 此方法会静默忽略所有错误，仅用于可选配置文件
     fn load_or_default(path: &Path) -> Self {
         Self::load(path).unwrap_or_default()
+    }
+
+    /// 检查配置文件是否存在
+    ///
+    /// # Arguments
+    /// * `path` - 配置文件目录路径
+    ///
+    /// # Returns
+    /// * `true` - 配置文件存在
+    /// * `false` - 配置文件不存在
+    fn exists(path: &Path) -> bool {
+        Self::config_file_path(path).exists()
+    }
+
+    /// 获取配置文件路径（供内部使用）
+    ///
+    /// 默认实现假设配置文件名为 `config.toml`
+    fn config_file_path(path: &Path) -> PathBuf {
+        path.join("config.toml")
     }
 }
 
@@ -50,6 +92,13 @@ pub struct RunConfig {
     /// 相机控制模式
     #[serde(default = "default_camera_mode")]
     pub camera_mode: String,
+    /// 物理重力（Y轴分量），默认 -9.81
+    #[serde(default = "default_gravity")]
+    pub gravity_y: f32,
+}
+
+fn default_gravity() -> f32 {
+    -9.81
 }
 
 fn default_scene() -> String {
@@ -100,7 +149,7 @@ impl ProjectConfig {
 
 impl ConfigLoader for ProjectConfig {
     fn load(path: &Path) -> Result<Self, ConfigError> {
-        let config_path = path.join("project.toml");
+        let config_path = Self::config_file_path(path);
 
         if !config_path.exists() {
             return Err(ConfigError::NotFound(config_path));
@@ -109,6 +158,10 @@ impl ConfigLoader for ProjectConfig {
         let content = std::fs::read_to_string(&config_path)?;
         let config: ProjectConfig = toml::from_str(&content)?;
         Ok(config)
+    }
+
+    fn config_file_path(path: &Path) -> PathBuf {
+        path.join("project.toml")
     }
 }
 
