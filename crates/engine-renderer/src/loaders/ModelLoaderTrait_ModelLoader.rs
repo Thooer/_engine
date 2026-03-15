@@ -1,7 +1,8 @@
 use std::path::Path;
 use glam::{Vec3, Quat};
 use wgpu::util::DeviceExt;
-use crate::graphics::{GpuModel, GpuMesh, MeshPrimitive, ModelNode, ModelLoaderTrait, Vertex, ModelLoader};
+use crate::graphics::{GpuModel, GpuMesh, MeshPrimitive, ModelNode, Vertex};
+use crate::loaders::{ModelLoader, ModelLoaderTrait};
 
 impl ModelLoaderTrait for ModelLoader {
     fn load_gltf(

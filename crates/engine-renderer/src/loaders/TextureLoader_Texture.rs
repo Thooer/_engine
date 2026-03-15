@@ -1,5 +1,5 @@
 use crate::graphics::Texture;
-use crate::graphics::TextureLoader;
+use crate::loaders::TextureLoader;
 use image::GenericImageView;
 
 impl TextureLoader for Texture {

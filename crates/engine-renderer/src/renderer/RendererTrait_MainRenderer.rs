@@ -7,10 +7,12 @@ use bevy_ecs::prelude::World;
 use super::{FrameStartError, MainRenderer, RendererTrait, SurfaceContextTrait};
 use crate::ui::{GuiSystem, GuiSystemTrait, EngineStatsUi, EngineStatsUiTrait};
 use crate::graphics::{
-    Texture, TextureLoader,
+    Texture,
     PointLight as GpuPointLight,
+    GlobalLayouts, MaterialLayoutCache,
 };
-use crate::passes::{MeshForwardPass, LinePass, RenderPass};
+use crate::loaders::TextureLoader;
+use crate::passes::{MeshForwardPass, LinePass, RenderPass, UiPass};
 use crate::uniforms::{CameraGpuUniform, CameraGpuUniformTrait, LightGpuUniform, LightGpuUniformTrait};
 
 impl RendererTrait for MainRenderer {
@@ -72,52 +74,14 @@ impl RendererTrait for MainRenderer {
             ..Default::default()
         });
 
+        // Initialize Global Layouts
+        let global_layouts = GlobalLayouts::new(device);
+        let layout_cache = MaterialLayoutCache::new();
+
         // Frame Bind Group (Group 0)
         // Camera, Lights, Global Params...
-        let frame_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                // Camera
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                // Sampler Linear
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-                // Sampler Nearest
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-                    count: None,
-                },
-                // Light Uniform
-                wgpu::BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ],
-            label: Some("Frame Bind Group Layout"),
-        });
-
         let frame_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &frame_bind_group_layout,
+            layout: &global_layouts.frame_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -140,14 +104,9 @@ impl RendererTrait for MainRenderer {
         });
 
         // Pass Bind Group (Group 1 - Empty)
-        let pass_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Pass Bind Group Layout"),
-            entries: &[],
-        });
-        
         let pass_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Pass Bind Group"),
-            layout: &pass_bind_group_layout,
+            layout: &global_layouts.pass_layout,
             entries: &[],
         });
 
@@ -185,9 +144,9 @@ impl RendererTrait for MainRenderer {
             line_buffer: None,
             line_buffer_capacity: 0,
             frame_bind_group,
-            frame_bind_group_layout,
             pass_bind_group,
-            pass_bind_group_layout,
+            global_layouts,
+            layout_cache,
             window,
             gui,
             // passes,
@@ -221,7 +180,7 @@ impl RendererTrait for MainRenderer {
 
     fn collect_from_world(&mut self, world: &mut World) {
         use engine_core::ecs::{Transform, MeshRenderable, PointLight, LineRenderable};
-        use crate::graphics::ModelLoaderTrait;
+        use crate::loaders::ModelLoaderTrait;
         
         // 不清空 ui_objects，保留应用在 on_start 中注册的 UI（如 ProjectOpener）
         self.lines.clear();
@@ -233,7 +192,7 @@ impl RendererTrait for MainRenderer {
             // Auto-load model if not in cache
             if !self.model_cache.contains_key(&mesh.mesh_id) {
                 let model_path = format!("assets/models/{}", mesh.mesh_id);
-                match crate::graphics::ModelLoader::load_gltf(&self.device, &self.queue, &model_path) {
+                match crate::loaders::ModelLoader::load_gltf(&self.device, &self.queue, &model_path) {
                     Ok(gpu_model) => {
                         tracing::info!("Auto-loaded model: {}", mesh.mesh_id);
                         self.model_cache.insert(mesh.mesh_id.clone(), Arc::new(gpu_model));
@@ -437,37 +396,12 @@ impl RendererTrait for MainRenderer {
         // 线条Pass
         LinePass.render(self, ctx as &mut dyn SurfaceContextTrait, &mut encoder, &view)?;
         // EGUI Pass
-        render_ui(self, ctx.device(), ctx.queue(), &mut encoder, &view);
+        UiPass.render(self, ctx as &mut dyn SurfaceContextTrait, &mut encoder, &view)?;
 
         ctx.queue().submit(std::iter::once(encoder.finish()));
         ctx.frame_show(output);
         Ok(())
     }
-}
-
-fn render_ui(
-    renderer: &mut MainRenderer,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    encoder: &mut wgpu::CommandEncoder,
-    view: &wgpu::TextureView,
-) {
-    renderer.gui.begin_frame(renderer.window);
-
-    let screen_descriptor = egui_wgpu::ScreenDescriptor {
-        size_in_pixels: [renderer.surface_size.width, renderer.surface_size.height],
-        pixels_per_point: renderer.window.scale_factor() as f32,
-    };
-
-    renderer.gui.end_frame(
-        device,
-        queue,
-        encoder,
-        view,
-        screen_descriptor,
-        renderer.window,
-        &mut renderer.ui_objects,
-    );
 }
 
 // ============================================================================

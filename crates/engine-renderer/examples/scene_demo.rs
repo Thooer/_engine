@@ -3,7 +3,7 @@ use winit::event::WindowEvent;
 use engine_renderer::renderer::{
     MainRenderer, RendererTrait, SurfaceContextTrait,
 };
-use engine_renderer::graphics::{
+use engine_renderer::loaders::{
     ModelLoader, ModelLoaderTrait, MaterialLoader, MaterialLoaderTrait, PipelineGenerator, PipelineGeneratorTrait
 };
 use engine_renderer::uniforms::{*};
@@ -39,6 +39,8 @@ impl App for SceneDemoApp {
             queue, 
             "assets/materials", // Use directory path
             &pipeline_generator,
+            &renderer.global_layouts,
+            &mut renderer.layout_cache,
             format,
             Some(wgpu::TextureFormat::Depth32Float) // 假设深度格式
         ) {

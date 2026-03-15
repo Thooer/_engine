@@ -4,7 +4,7 @@ use crate::renderer::{MainRenderer, SurfaceContextTrait, FrameStartError};
 impl RenderPass for LinePass {
     fn render(
         &self,
-        renderer: &MainRenderer,
+        renderer: &mut MainRenderer,
         ctx: &mut dyn SurfaceContextTrait,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,

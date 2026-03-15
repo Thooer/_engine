@@ -4,7 +4,7 @@ use std::path::Path;
 use std::fs;
 use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
-use crate::graphics::{ShaderLoader, ShaderLoaderTrait};
+use crate::loaders::{ShaderLoader, ShaderLoaderTrait};
 
 /// 递归处理 include 指令
 fn process_includes(root_dir: &Path, source: &str, included: &mut HashSet<String>) -> Result<String, String> {

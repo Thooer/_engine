@@ -7,7 +7,7 @@ use crate::graphics::InstanceRaw;
 impl RenderPass for MeshForwardPass {
     fn render(
         &self,
-        renderer: &MainRenderer,
+        renderer: &mut MainRenderer,
         ctx: &mut dyn SurfaceContextTrait,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
