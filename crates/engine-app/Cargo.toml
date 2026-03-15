@@ -12,6 +12,7 @@ engine-renderer = { path = "../engine-renderer" }
 engine-physics = { path = "../engine-physics" }
 engine-scene = { path = "../engine-scene" }
 engine-platform = { path = "../engine-platform" }
+engine-script = { path = "../engine-script" }
 
 bevy_ecs = { workspace = true }
 winit = { workspace = true }
