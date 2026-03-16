@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use bevy_ecs::prelude::{World, Entity};
+use bevy_ecs::prelude::{World, Entity, Name};
 use engine_core::ecs::Transform;
 use thiserror::Error;
 
@@ -124,7 +124,10 @@ impl Default for EntityQueryIter {
 
 /// 脚本上下文 Trait - 脚本访问引擎的接口
 /// 这是实现通用实体控制的关键 trait
-pub trait ScriptContext: Send + Sync {
+/// 脚本上下文 trait - 引擎提供给脚本的接口
+/// # Safety
+/// 实现必须确保在单线程环境下使用
+pub trait ScriptContext {
     /// 获取 ECS World 引用（只读）
     fn world(&self) -> &World;
 
@@ -145,6 +148,13 @@ pub trait ScriptContext: Send + Sync {
 
     /// 检查实体是否存在
     fn entity_exists(&self, entity: Entity) -> bool;
+
+    /// 按索引查询实体（第 index 个有 Transform 的实体）
+    /// 用于 WASM 脚本动态查找要操作的实体
+    fn query_entity_by_index(&mut self, index: usize) -> Option<Entity>;
+
+    /// 按名称查询实体
+    fn query_entity_by_name(&mut self, name: &str) -> Option<Entity>;
 
     /// 创建新实体并返回 Entity ID
     fn spawn_entity(&mut self) -> Entity;
@@ -170,43 +180,49 @@ pub trait ScriptContext: Send + Sync {
 // ============================================================================
 
 /// ECS 实现的脚本上下文 - 允许脚本访问和修改 ECS World
-/// 使用 World 引用而非拥有，以便与 engine 共享
+/// 使用原始指针实现与 engine 共享 World
+/// # Safety
+/// 调用者必须确保 World 的生命周期长于 EcsScriptContext
 pub struct EcsScriptContext {
-    world: World,
+    /// 原始指针，指向 engine 的 World
+    world_ptr: *mut World,
     frame_data: FrameData,
 }
 
 impl EcsScriptContext {
-    pub fn new(world: World, frame_data: FrameData) -> Self {
-        Self { world, frame_data }
-    }
-
-    /// 从 engine 创建（接受 World 引用）
-    pub fn from_world(world: &mut World, frame_data: FrameData) -> Self {
-        // 注意：由于 World 不能 clone，这里我们需要一个不同的设计
-        // 简化：使用原始指针（不安全但有效），或者改变设计
-        // 这里我们采用简化的方法 - 创建新的空 World
-        // 实际使用时应该直接使用 engine.world_mut()
+    /// 创建新的脚本上下文，共享 engine 的 World
+    /// # Arguments
+    /// * `world` - engine 的 World 引用，脚本可以直接修改
+    /// * `frame_data` - 当前帧的数据
+    /// # Safety
+    /// 调用者必须确保 World 的生命周期长于 EcsScriptContext
+    pub unsafe fn new(world: &mut World, frame_data: FrameData) -> Self {
         Self {
-            world: World::new(),
+            world_ptr: world as *mut World,
             frame_data,
         }
     }
 
-    /// 从 engine-app 同步 ECS World（用于每帧更新）
-    pub fn sync_world(&mut self, world: &mut World) {
-        // 注意：这里我们不直接替换 world，而是通过其他方式访问
-        // 因为 World 不能直接 clone，我们使用一个内部可变的方案
+    /// 获取 World 可变引用
+    #[inline]
+    fn world_mut(&mut self) -> &mut World {
+        unsafe { &mut *self.world_ptr }
+    }
+
+    /// 获取 World 只读引用
+    #[inline]
+    fn world(&self) -> &World {
+        unsafe { &*self.world_ptr }
     }
 }
 
 impl ScriptContext for EcsScriptContext {
     fn world(&self) -> &World {
-        &self.world
+        self.world()
     }
 
     fn world_mut(&mut self) -> &mut World {
-        &mut self.world
+        self.world_mut()
     }
 
     fn frame_data(&self) -> FrameData {
@@ -214,29 +230,46 @@ impl ScriptContext for EcsScriptContext {
     }
 
     fn query_all_transforms(&mut self) -> EntityQueryIter {
-        EntityQueryIter::from_world(&mut self.world)
+        EntityQueryIter::from_world(self.world_mut())
     }
 
     fn get_entity_transform(&mut self, entity: Entity) -> Option<Transform> {
-        self.world.get::<Transform>(entity).copied()
+        self.world_mut().get::<Transform>(entity).copied()
     }
 
     fn set_entity_transform(&mut self, entity: Entity, transform: Transform) {
-        if let Some(mut t) = self.world.get_mut::<Transform>(entity) {
+        if let Some(mut t) = self.world_mut().get_mut::<Transform>(entity) {
             *t = transform;
         }
     }
 
     fn entity_exists(&self, entity: Entity) -> bool {
-        self.world.entities().contains(entity)
+        self.world().entities().contains(entity)
+    }
+
+    fn query_entity_by_index(&mut self, index: usize) -> Option<Entity> {
+        let world = self.world_mut();
+        let mut query = world.query::<Entity>();
+        query.iter(world).nth(index)
+    }
+
+    fn query_entity_by_name(&mut self, name: &str) -> Option<Entity> {
+        let world = self.world_mut();
+        let mut query = world.query::<(Entity, &Name)>();
+        for (entity, named) in query.iter(world) {
+            if named.as_str() == name {
+                return Some(entity);
+            }
+        }
+        None
     }
 
     fn spawn_entity(&mut self) -> Entity {
-        self.world.spawn(Transform::default()).id()
+        self.world_mut().spawn(Transform::default()).id()
     }
 
     fn despawn_entity(&mut self, entity: Entity) -> bool {
-        self.world.despawn(entity)
+        self.world_mut().despawn(entity)
     }
 
     fn log(&self, level: &str, message: &str) {
@@ -268,7 +301,10 @@ impl ScriptContext for EcsScriptContext {
 
 /// 脚本主机 Trait - 脚本运行时的抽象
 /// 新版本接收 ScriptContext 以支持 ECS 交互
-pub trait ScriptHost: Send + Sync {
+/// 脚本主机 trait - 引擎用于运行脚本的接口
+/// # Safety
+/// 实现必须确保在单线程环境下使用
+pub trait ScriptHost {
     /// 加载脚本模块
     fn load(&mut self, path: &Path) -> Result<(), ScriptError>;
 

@@ -1,0 +1,19 @@
+[package]
+name = "separate-inherent"
+version = "0.1.0"
+edition = "2021"
+authors = ["ToyEngine Team"]
+description = "过程宏：允许固有实现分离到独立文件，保持前后端分离"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+proc-macro2 = "1.0"
+syn = { version = "2.0", features = ["full"] }
+quote = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+trybuild = "1.0"
+
+[lib]
+proc-macro = true

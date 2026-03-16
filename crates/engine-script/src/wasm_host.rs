@@ -5,10 +5,65 @@
 
 use std::path::Path;
 
-use wasmer::{Module, Instance, Store, Value, Memory};
+use wasmer::{Module, Instance, Store, Value, Memory, Function};
 use glam::Vec3;
 
-use crate::{FrameData, ScriptError, ScriptHost, ScriptContext};
+use crate::{ScriptError, ScriptHost, ScriptContext};
+
+/// 设置变换命令
+#[derive(Clone, Debug)]
+pub struct SetTransformCommand {
+    pub entity_bits: i32,
+    pub position: Vec3,
+    pub scale: Vec3,
+}
+
+/// 全局命令缓冲区（用于 WASM 脚本传递命令给引擎）
+static PENDING_COMMANDS: std::sync::OnceLock<std::sync::Mutex<Vec<SetTransformCommand>>> = std::sync::OnceLock::new();
+
+fn get_commands() -> &'static std::sync::Mutex<Vec<SetTransformCommand>> {
+    PENDING_COMMANDS.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+}
+
+/// 导出给 WASM 的 set_transform 函数
+/// 参数: entity_bits, x, y, z, sx, sy, sz
+#[no_mangle]
+pub extern "C" fn set_transform(
+    entity_bits: i32,
+    x: f32,
+    y: f32,
+    z: f32,
+    sx: f32,
+    sy: f32,
+    sz: f32,
+) {
+    let cmd = SetTransformCommand {
+        entity_bits,
+        position: Vec3::new(x, y, z),
+        scale: Vec3::new(sx, sy, sz),
+    };
+    if let Ok(mut cmds) = get_commands().lock() {
+        cmds.push(cmd);
+    }
+    tracing::debug!("WASM set_transform called: entity={}, pos=({},{},{}), scale=({},{},{})",
+        entity_bits, x, y, z, sx, sy, sz);
+}
+
+/// 清除待处理的命令（每次 update 前调用）
+pub fn clear_pending_commands() {
+    if let Ok(mut cmds) = get_commands().lock() {
+        cmds.clear();
+    }
+}
+
+/// 获取待处理的命令
+pub fn take_pending_commands() -> Vec<SetTransformCommand> {
+    if let Ok(mut cmds) = get_commands().lock() {
+        std::mem::take(&mut cmds)
+    } else {
+        Vec::new()
+    }
+}
 
 /// WASM 脚本主机 - 桥接 Wasmer 和 Script Trait
 ///
@@ -46,8 +101,11 @@ impl WasmScriptHost {
         let module = Module::new(&store, bytes)
             .map_err(|e| ScriptError::Module(format!("Failed to compile WASM: {}", e)))?;
 
+        // 创建导入对象，提供 env.set_transform 函数
         let import_object = wasmer::imports! {
-            "env" => {}
+            "env" => {
+                "set_transform" => Function::new_typed(&mut store, set_transform_wrapper),
+            }
         };
 
         let instance = Instance::new(&mut store, &module, &import_object)
@@ -168,9 +226,38 @@ impl ScriptHost for WasmScriptHost {
 
         let frame = ctx.frame_data();
 
+        // WASM 脚本约定: entity_id_0=相机, entity_id_1..3=卫星1..3
+        let world = ctx.world_mut();
+
+        // 查询相机实体（名称 "Camera" 或带 Camera3D）
+        let mut camera_query = world.query::<(bevy_ecs::prelude::Entity, &bevy_ecs::prelude::Name)>();
+        let camera_id = camera_query.iter(world)
+            .find(|(_, name)| name.as_str() == "Camera")
+            .map(|(e, _)| e.to_bits())
+            .unwrap_or(0);
+
+        // 查询卫星实体（名称以 "Satellite" 开头）
+        let mut name_query = world.query::<(bevy_ecs::prelude::Entity, &bevy_ecs::prelude::Name)>();
+        let mut satellite_ids: Vec<u64> = Vec::new();
+        for (entity, name) in name_query.iter(world) {
+            let name_str = name.as_str();
+            if name_str.starts_with("Satellite") {
+                satellite_ids.push(entity.to_bits());
+            }
+        }
+
+        // 按脚本约定顺序: [camera, sat1, sat2, sat3, 0..0]
+        let mut entity_ids: Vec<u64> = vec![camera_id];
+        entity_ids.extend(satellite_ids.iter().take(9).copied());
+        while entity_ids.len() < 10 {
+            entity_ids.push(0);
+        }
+
+        tracing::info!("Entity IDs: camera={}, satellites={:?}", camera_id, &entity_ids[1..4]);
+
         // 尝试调用 update 函数（兼容模式）
         if let Ok(update_func) = instance.exports.get_function("update") {
-            // 参数: dt, frame_count, radius, height, speed, input_mask (bit 0-3 对应数字键 1-4)
+            // 参数: dt, frame_count, radius, height, speed, input_mask, entity_id_0, ...
             let dt_bits = f32_to_i32(frame.delta_time);
             let frame_bits = frame.frame_count as i32;
             let radius_bits = f32_to_i32(10.0);
@@ -178,14 +265,53 @@ impl ScriptHost for WasmScriptHost {
             let speed_bits = f32_to_i32(1.0);
             let input_mask = frame.input_mask;
 
-            let _ = update_func.call(store, &[
+            let mut args: Vec<Value> = vec![
                 Value::I32(dt_bits),
                 Value::I32(frame_bits),
                 Value::I32(radius_bits),
                 Value::I32(height_bits),
                 Value::I32(speed_bits),
                 Value::I32(input_mask as i32),
-            ]);
+            ];
+
+            for i in 0..10 {
+                let id = entity_ids.get(i).copied().unwrap_or(0);
+                let id_i32 = (id as u32) as i32;
+                args.push(Value::I32(id_i32));
+            }
+
+            // 清除之前的命令
+            clear_pending_commands();
+
+            let _ = update_func.call(store, &args);
+
+            // 执行 WASM 生成的命令
+            let commands = take_pending_commands();
+            for cmd in commands {
+                // 从 entity_bits 恢复 Entity - i32 -> u32 -> u64 (只取低32位)
+                let entity = bevy_ecs::entity::Entity::from_bits((cmd.entity_bits as u32) as u64);
+                tracing::info!("set_transform called: entity_bits={} (i32), converted to u64={}, pos=({},{},{}), scale=({},{},{})", 
+                    cmd.entity_bits, 
+                    (cmd.entity_bits as u32) as u64,
+                    cmd.position.x, cmd.position.y, cmd.position.z,
+                    cmd.scale.x, cmd.scale.y, cmd.scale.z);
+                // 使用 entity_mut 获取可变引用
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    // 更新 Transform 组件
+                    if let Some(mut transform) = entity_mut.get_mut::<engine_core::ecs::Transform>() {
+                        transform.translation = cmd.position;
+                        transform.scale = cmd.scale;
+                    }
+                    // 如果实体有 Camera3D 组件，也更新其 position
+                    if let Some(mut camera) = entity_mut.get_mut::<engine_core::ecs::Camera3D>() {
+                        camera.position = cmd.position;
+                    }
+                    tracing::debug!("Applied set_transform: entity={}, pos=({},{},{})",
+                        cmd.entity_bits, cmd.position.x, cmd.position.y, cmd.position.z);
+                } else {
+                    tracing::warn!("set_transform: entity not found: {}", cmd.entity_bits);
+                }
+            }
         }
 
         // 获取返回值 - 调用 get_camera_x/y/z
@@ -240,6 +366,21 @@ pub fn create_wasm_host(name: &str) -> Result<Box<dyn ScriptHost>, ScriptError> 
 // ============================================================================
 // 辅助函数
 // ============================================================================
+
+/// WASM set_transform 的包装器（用于导入对象）
+/// 参数: i32, f32, f32, f32, f32, f32, f32
+fn set_transform_wrapper(
+    entity_bits: i32,
+    x: f32,
+    y: f32,
+    z: f32,
+    sx: f32,
+    sy: f32,
+    sz: f32,
+) {
+    // 直接调用全局函数
+    set_transform(entity_bits, x, y, z, sx, sy, sz);
+}
 
 /// 将 f32 转换为 i32 位表示
 #[inline]

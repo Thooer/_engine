@@ -3,7 +3,11 @@
         // 相机实体（带轨道控制器）
         (
             name: Some("Camera"),
-            transform: None,
+            transform: Some((
+                translation: (10.0, 6.0, 0.0),
+                rotation: (0.0, 0.0, 0.0, 1.0),
+                scale: (1.0, 1.0, 1.0),
+            )),
             renderable: None,
             mesh: None,
             camera: Some((

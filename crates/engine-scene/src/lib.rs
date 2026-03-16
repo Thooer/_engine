@@ -381,6 +381,9 @@ fn spawn_entity(
 
     // 如果实体名称以 "Satellite" 开头，添加 Satellite 标记组件
     if let Some(ref name) = data.name {
+        // 添加 Name 组件
+        commands.insert(bevy_ecs::prelude::Name::from(name.clone()));
+        
         if name.starts_with("Satellite") {
             commands.insert(engine_core::ecs::Satellite);
         }

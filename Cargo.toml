@@ -12,6 +12,7 @@ members = [
     "crates/engine-scene",
     "crates/engine-platform",
     "crates/engine-script",
+    "crates/separate-inherent",
 ]
 exclude = [
     "demos",

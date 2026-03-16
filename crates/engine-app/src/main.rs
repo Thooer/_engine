@@ -345,7 +345,11 @@ impl App for ToyEngineApp {
         if let Some(ref mut host) = self.script_host {
             // 创建一个临时的 EcsScriptContext，传入当前帧的 input_mask 供脚本切换镜头等
             let frame_data = FrameData::new(dt_seconds, 0.0, 0).with_input_mask(input_mask);
-            let mut script_ctx = EcsScriptContext::new(World::new(), frame_data);
+            // 关键修改: 传入 engine.world_mut() 而非空 World
+            // 脚本现在可以直接操作引擎的 ECS!
+            let mut script_ctx = unsafe {
+                EcsScriptContext::new(engine.world_mut(), frame_data)
+            };
 
             // 调用脚本更新
             if let Err(e) = host.update(&mut script_ctx) {
@@ -360,17 +364,6 @@ impl App for ToyEngineApp {
                 camera.position = pos;
             }
 
-            // 卫星实体现在由场景文件管理
-            // 查询 Satellite 组件的实体，由脚本更新位置
-            let mut satellite_query = engine.core.world.query::<(&Satellite, &mut Transform)>();
-            let world = engine.world_mut();
-            for (i, (_, mut transform)) in satellite_query.iter_mut(world).enumerate() {
-                let x = host.get_satellite_x(i as i32);
-                let z = host.get_satellite_z(i as i32);
-                let (r, g, b) = host.get_satellite_color(i as i32);
-                transform.translation = Vec3::new(x, 0.5, z);
-                // 注意：颜色更新需要 Renderable 组件
-            }
         }
     }
 }
